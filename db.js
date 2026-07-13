@@ -17,7 +17,7 @@ const VAZIO = () => ({
     qtdPremios: 2,
     qtdGanhadores: 2,
     dataInicio: '2026-07-24',
-    dataFim: '2026-08-10',
+    dataFim: '2026-08-09',
     dataApuracao: '2026-08-19', // extração da Loteria Federal (quarta-feira)
     numCertificadoSPA: null, // BLOQUEIA go-live real até preencher (Seção 22)
     acumulaSaldo: true,
