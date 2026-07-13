@@ -65,9 +65,9 @@ async function carregarParticipante(nome) {
   if (nome || p.nome) $('p-nome').textContent = (nome || p.nome).split(' ')[0];
   $('m-valor').textContent = money(p.valorElegivel);
   $('m-num').textContent = p.numerosAtivos;
-  const falta = 400 - p.saldoRemanescente;
-  $('m-falta').textContent = money(falta === 400 ? 400 : falta);
-  $('m-barra').style.width = Math.min(100, (p.saldoRemanescente / 400) * 100) + '%';
+  const falta = 500 - p.saldoRemanescente;
+  $('m-falta').textContent = money(falta === 500 ? 500 : falta);
+  $('m-barra').style.width = Math.min(100, (p.saldoRemanescente / 500) * 100) + '%';
   $('p-numeros').innerHTML = r.numeros.length
     ? r.numeros.map(n => `<span class="num">${n}</span>`).join('')
     : '<small class="help">Você ainda não tem números. Envie suas notas para começar a concorrer.</small>';

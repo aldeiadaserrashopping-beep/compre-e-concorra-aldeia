@@ -10,24 +10,24 @@ let ok = 0, fail = 0;
 function t(nome, fn) { try { fn(); ok++; console.log('  ✓', nome); } catch (e) { fail++; console.log('  ✗', nome, '->', e.message); } }
 const c = core.toCents;
 
-console.log('\n== Cálculo de Números da Sorte (piso R$400) ==');
-t('R$399,99 => 0 números, remanescente R$399,99', () => {
-  const r = core.calcularNumeros(c(399.99));
+console.log('\n== Cálculo de Números da Sorte (piso R$500) ==');
+t('R$499,99 => 0 números, remanescente R$499,99', () => {
+  const r = core.calcularNumeros(c(499.99));
   assert.strictEqual(r.numerosDevidos, 0);
-  assert.strictEqual(r.saldoRemanescenteCents, c(399.99));
+  assert.strictEqual(r.saldoRemanescenteCents, c(499.99));
 });
-t('R$400,00 => 1 número', () => assert.strictEqual(core.calcularNumeros(c(400)).numerosDevidos, 1));
-t('R$800,00 => 2 números', () => assert.strictEqual(core.calcularNumeros(c(800)).numerosDevidos, 2));
-t('R$1.200,00 => 3 números', () => assert.strictEqual(core.calcularNumeros(c(1200)).numerosDevidos, 3));
-t('R$1.550,00 => 3 números + R$350 remanescente', () => {
-  const r = core.calcularNumeros(c(1550));
+t('R$500,00 => 1 número', () => assert.strictEqual(core.calcularNumeros(c(500)).numerosDevidos, 1));
+t('R$1.000,00 => 2 números', () => assert.strictEqual(core.calcularNumeros(c(1000)).numerosDevidos, 2));
+t('R$1.500,00 => 3 números', () => assert.strictEqual(core.calcularNumeros(c(1500)).numerosDevidos, 3));
+t('R$1.750,00 => 3 números + R$250 remanescente', () => {
+  const r = core.calcularNumeros(c(1750));
   assert.strictEqual(r.numerosDevidos, 3);
-  assert.strictEqual(r.saldoRemanescenteCents, c(350));
+  assert.strictEqual(r.saldoRemanescenteCents, c(250));
 });
 
 console.log('\n== Acúmulo de saldo remanescente ==');
-t('399,99 + 300,00 => 1 número, sobra 299,99', () => {
-  const r = core.calcularNumeros(c(399.99) + c(300));
+t('499,99 + 300,00 => 1 número, sobra 299,99', () => {
+  const r = core.calcularNumeros(c(499.99) + c(300));
   assert.strictEqual(r.numerosDevidos, 1);
   assert.strictEqual(r.saldoRemanescenteCents, c(299.99));
 });

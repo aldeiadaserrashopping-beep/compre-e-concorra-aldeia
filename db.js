@@ -13,7 +13,7 @@ const VAZIO = () => ({
   campanha: {
     id: 'CAMP-ALDEIA-2026',
     nome: 'Compre e Concorra — 2 Bicicletas Elétricas',
-    valorUnidade: 400.0,
+    valorUnidade: 500.0,
     qtdPremios: 2,
     qtdGanhadores: 2,
     dataInicio: '2026-07-24',

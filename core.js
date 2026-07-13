@@ -6,12 +6,12 @@
  */
 const crypto = require('crypto');
 
-const UNIDADE = 400.0; // R$ 400,00 => 1 Número da Sorte (RN-01)
+const UNIDADE = 500.0; // R$ 500,00 => 1 Número da Sorte (RN-01)
 
 // ---------- Utilidades monetárias (trabalha em centavos p/ evitar erro de ponto flutuante) ----------
 const toCents = (v) => Math.round(Number(v) * 100);
 const fromCents = (c) => c / 100;
-const UNIDADE_CENTS = toCents(UNIDADE); // 40000
+const UNIDADE_CENTS = toCents(UNIDADE); // 50000
 
 // ---------- Validação de CPF (dígitos verificadores) ----------
 function cpfValido(cpf) {
