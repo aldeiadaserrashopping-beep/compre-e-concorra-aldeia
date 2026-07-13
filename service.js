@@ -226,14 +226,19 @@ function apurar(premiosLoteria, usuario, ip) {
     resultadoLoteria: premiosLoteria, snapshotHash, executadoPor: usuario, ganhadores: [] };
 
   const excluir = [];
+  let ultimoNumero = null; // número contemplado no prêmio anterior
   for (let premio = 1; premio <= store.campanha.qtdGanhadores; premio++) {
-    // Prêmios distintos: gira a composição por prêmio (CONFIGURÁVEL / A VALIDAR NO REGULAMENTO)
-    const base = premio === 1 ? premiosLoteria : rotate(premiosLoteria, premio - 1);
-    const numeroAlvo = core.numeroContempladoPadrao(base);
+    // 1º prêmio: composição da Loteria Federal (cláusula 9.2).
+    // Demais prêmios: PRÓXIMO NÚMERO VÁLIDO imediatamente superior ao anterior (cláusula 9.4).
+    const numeroAlvo = premio === 1
+      ? core.numeroContempladoPadrao(premiosLoteria)
+      : String((parseInt(ultimoNumero, 10) + 1) % 100000).padStart(5, '0');
     const { ganhador, regra } = core.localizarGanhador(numeroAlvo, ativos, '01', excluir);
     let g;
     if (ganhador) {
-      excluir.push(ganhador.id);
+      ultimoNumero = ganhador.numero;
+      // Padrão: ganhadores de participantes distintos -> exclui todos os números desse CPF
+      ativos.filter(n => n.participanteId === ganhador.participanteId).forEach(n => excluir.push(n.id));
       const part = store.participantes.find(x => x.id === ganhador.participanteId);
       g = { premioOrdem: premio, numeroAlvo, regra, numeroId: ganhador.id,
         numero: `${ganhador.serie}-${ganhador.numero}`, participanteId: ganhador.participanteId,
