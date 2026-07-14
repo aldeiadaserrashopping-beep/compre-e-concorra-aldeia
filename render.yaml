@@ -2,10 +2,18 @@ services:
   - type: web
     name: compre-e-concorra-aldeia
     runtime: node
-    plan: free
+    plan: starter          # pago: no plano free o serviço hiberna e o participante pega o site fora do ar
     buildCommand: npm install
     startCommand: node server.js
     autoDeploy: true
+    healthCheckPath: /api/v1/campanha
     envVars:
       - key: NODE_VERSION
         value: 20
+      - key: TZ
+        value: America/Sao_Paulo
+      # Definidas no painel do Render (nunca no repositório):
+      #   DATABASE_URL    — ligada ao banco aldeia-premia-db
+      #   APP_KEY         — 32 bytes (64 hex) para cifrar o CPF em repouso
+      #   ADMIN_SENHA     — senha do primeiro acesso ao painel
+      #   CERTIFICADO_SPA — número do Certificado de Autorização, quando a SPA/MF emitir

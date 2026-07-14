@@ -61,8 +61,11 @@ async function validarSCPC() {
 
 async function verAuditoria() {
   const r = await api('/api/v1/admin/auditoria');
-  const i = r.integridade.ok ? `<div class="msg ok">Cadeia íntegra ✔ (${r.integridade.total} registros)</div>` : `<div class="msg err">Cadeia comprometida em ${r.integridade.quebrouEm}</div>`;
-  $('a-aud').innerHTML = i + '<table><tr><th>Data</th><th>Entidade</th><th>Ação</th><th>Usuário</th></tr>' +
+  const i = r.integridade.ok ? `<div class="msg ok">Trilha de auditoria íntegra ✔ (${r.integridade.total} registros)</div>` : `<div class="msg err">Trilha de auditoria comprometida no registro ${r.integridade.quebrouEm}</div>`;
+  // A cadeia dos Números da Sorte é a prova que interessa ao auditor: se alguém
+  // inserir, alterar ou remover um número, ela quebra e o painel aponta onde.
+  const n = r.numeros.ok ? `<div class="msg ok">Números da Sorte íntegros ✔ (${r.numeros.total} emitidos)</div>` : `<div class="msg err">Cadeia dos Números quebrada no ${r.numeros.quebrouEm} (seq ${r.numeros.seq})</div>`;
+  $('a-aud').innerHTML = i + n + '<table><tr><th>Data</th><th>Entidade</th><th>Ação</th><th>Usuário</th></tr>' +
     r.registros.slice(-15).reverse().map(a => `<tr><td>${a.dataHora.slice(0, 19).replace('T', ' ')}</td><td>${a.entidade}</td><td>${a.acao}</td><td>${a.usuario}</td></tr>`).join('') + '</table>';
 }
 
@@ -70,7 +73,7 @@ function tabelaNotas(notas) {
   if (!notas.length) return '<small class="help">Nenhuma nota ainda.</small>';
   return '<table><tr><th>ID</th><th>Origem</th><th>CNPJ</th><th>Evidência</th><th>Valor válido</th><th>Status</th><th>Ações</th></tr>' +
     notas.map(n => `<tr><td>${n.id}</td><td>${n.origem || '-'}</td><td>${n.cnpjEmitente || '-'}</td>
-      <td>${n.fotoUrl ? `<a href="/${n.fotoUrl}" target="_blank">ver foto</a>` : '-'}</td>
+      <td>${n.fotoUrl ? `<a href="${n.fotoUrl}?token=${TOKEN}" target="_blank">ver foto</a>` : '-'}</td>
       <td>${money((n.valorElegivelCents || 0) / 100)}</td>
       <td><span class="chip ${n.status}">${n.status.replace('_', ' ')}</span>${n.motivoRejeicao ? '<br><small class="help">' + n.motivoRejeicao + '</small>' : ''}</td>
       <td>${n.status === 'EM_ANALISE' ? `<button class="btn sm" onclick="aprovar('${n.id}')">Aprovar</button> <button class="btn ghost sm" onclick="rejeitar('${n.id}')">Rejeitar</button>` : ''}${n.status === 'APROVADA' ? `<button class="btn ghost sm" onclick="cancelar('${n.id}')">Cancelar</button>` : ''}</td>

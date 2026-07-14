@@ -1,77 +1,96 @@
 # Aldeia Premia — Plataforma de Campanhas Promocionais
-## Shopping Aldeia da Serra · Campanha "Compre e Concorra" (Protótipo)
 
-Protótipo **funcional** do sistema de campanha promocional (2 bicicletas elétricas, 2 ganhadores,
-1 Número da Sorte a cada R$ 500,00). Implementa cadastro, upload/moderação de notas, **geração de
-Números da Sorte únicos e auditáveis** (com hash encadeado), painel administrativo, apuração
-vinculada à Loteria Federal e trilha de auditoria com verificação de integridade.
+**Shopping Aldeia da Serra** · Campanha "Compre e Concorra" (2 bicicletas elétricas, 2 ganhadores, 1 Número da Sorte a cada R$ 500,00 em compras).
 
-> ⚠️ **Protótipo para validação.** NÃO usar em produção sem: (1) revisão jurídica por advogado
-> especializado em promoções comerciais; (2) autorização da SPA/MF via SCPC; (3) troca do
-> armazenamento por PostgreSQL, hashing de senha com argon2/bcrypt, HTTPS, MFA e WAF.
-> Ver a **Especificação Funcional** completa (documento Markdown que acompanha este projeto).
+Cadastro do participante, leitura do QR/chave da NFC-e, moderação de notas, emissão de Números da Sorte únicos e auditáveis, apuração vinculada à Loteria Federal, trilha de auditoria verificável e exportação da lista no layout do SCPC.
+
+---
+
+## ⚖️ Situação regulatória
+
+Este sistema opera uma promoção comercial sujeita à Lei 5.768/1971 e ao Decreto 70.951/1972, cuja realização **depende de Certificado de Autorização emitido pela SPA/MF** (protocolo via SCPC).
+
+Enquanto a variável `CERTIFICADO_SPA` não estiver preenchida, o sistema roda em **modo pré-autorização**: opera normalmente, mas registra que a campanha ainda não tem certificado. Preencher assim que a autorização sair.
+
+Os parâmetros da campanha (datas, valor da unidade, lojas, modalidade) devem espelhar **o regulamento aprovado**, não o contrário. Ver `campanha.config.js` e a Especificação Funcional.
+
+---
 
 ## Como rodar
 
-Requer apenas **Node.js 18+** (nenhuma dependência a instalar).
+**Requer:** Node.js 18+ e um PostgreSQL. O sistema **não sobe sem banco** — isso é proposital: os cadastros dos participantes não podem depender de disco efêmero.
 
 ```bash
-cd sistema
-node server.js
-# abra http://localhost:3000
+npm install
+
+export DATABASE_URL="postgresql://usuario:senha@host:5432/banco"
+export APP_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+export ADMIN_SENHA="uma senha forte"
+
+node server.js     # http://localhost:3000
 ```
 
-Rodar os testes de regras de negócio:
+O schema é criado e migrado sozinho no boot (`schema.sql`). Se o banco falhar, o processo morre em vez de atender participante com banco meio configurado.
+
+### Variáveis de ambiente
+
+| Variável | Obrigatória | Para quê |
+|---|---|---|
+| `DATABASE_URL` | sim | Conexão com o PostgreSQL. |
+| `APP_KEY` | sim | 32 bytes (64 hex) — cifra o CPF em repouso (AES-256-GCM). **Se for perdida, os CPFs se tornam ilegíveis.** |
+| `ADMIN_SENHA` | sim (1º boot) | Senha do admin inicial. Nunca fica no código. |
+| `ADMIN_EMAIL` | não | E-mail do admin inicial. |
+| `CERTIFICADO_SPA` | não | Nº do Certificado de Autorização, quando a SPA/MF emitir. |
+| `TZ` | recomendada | `America/Sao_Paulo`. |
+
+### Testes
 
 ```bash
-node test.js
+node test.js              # 20 testes — regras puras (cálculo, CPF, chave NFC-e, apuração)
+node test-integracao.js   # 24 testes — precisa de DATABASE_URL apontando para um banco DESCARTÁVEL
 ```
 
-## Credenciais de demonstração
+O `test-integracao.js` **apaga o schema inteiro** antes de rodar. Nunca aponte para o banco de produção.
 
-- **Admin:** `admin@aldeia.com.br` / `admin123`
-- **Participante:** cadastre-se na aba "Cadastro" (use um CPF válido, ex.: 529.982.247-25) e use o
-  ID gerado (ex.: `P-1`) na aba "Minha Área".
+Para um Postgres local descartável: `node pg-local.js iniciar`.
 
-## Fluxo de demonstração
+---
 
-1. **Cadastro** → aceite regulamento + privacidade → recebe um `ID`.
-2. **Minha Área** → entre com o ID → **envie uma nota** (ex.: R$ 1.250,00).
-3. **Painel Admin** → login → **Moderação de Notas** → **Aprovar** → o sistema gera automaticamente
-   2 Números da Sorte (1250 ÷ 500 = 2, sobra R$ 250,00 de saldo).
-4. Volte à **Minha Área** → veja seus números e o saldo remanescente.
-5. **Painel Admin → Sorteio** → informe os 5 prêmios da Loteria Federal → **Apurar** → o sistema
-   calcula o número contemplado e localiza o(s) ganhador(es) (com regra de aproximação/suplência).
-6. **Auditoria** → "Verificar cadeia" confirma a integridade dos registros.
-
-## Arquitetura dos arquivos
+## Arquitetura
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `core.js` | Regras de negócio **puras** (cálculo de números, CPF, hash, apuração). Testável isoladamente. |
-| `db.js` | Persistência (JSON no protótipo) + **trilha de auditoria append-only** com hash encadeado. |
+| `core.js` | Regras puras: cálculo de números, validação de CPF, parsing da chave NFC-e, hash, apuração. Sem I/O — testável isoladamente. |
+| `store-pg.js` | **Única** camada de persistência. Transações, cifragem do CPF, cadeia de hash, auditoria append-only. |
 | `service.js` | Serviços de domínio: cadastro, notas, recálculo/inutilização de números, sorteio. |
-| `server.js` | Servidor HTTP (Node puro), API REST, rate limit, sessões admin, exportação CSV. |
-| `public/` | Portal do participante + painel administrativo (HTML/JS). |
-| `test.js` | Testes dos critérios de aceitação (Seção 21 da especificação). |
-| `data/db.json` | Base de dados do protótipo (recriada automaticamente se ausente). |
+| `server.js` | Servidor HTTP (Node puro), API REST, rate limit, sessões, exportação CSV/SCPC. |
+| `schema.sql` | Schema do PostgreSQL, com as travas de integridade. |
+| `campanha.config.js` | Parâmetros da campanha, semeados no 1º boot. |
+| `index.html` / `app.js` | Portal do participante. |
+| `admin.html` / `admin.js` | Painel administrativo (rota `/admin`, separada do portal). |
 
-## Garantias implementadas (mapeadas à especificação)
+Não há armazenamento alternativo em arquivo. Um segundo caminho para emitir Números da Sorte significaria duas lógicas para o auditor conferir, e o risco de cair em silêncio num armazenamento volátil.
 
-- **Unicidade** dos números: alocação sequencial + verificação de colisão + histórico (Seção 6.3).
-- **Auditabilidade**: cada número tem `hashIntegridade` encadeado; auditoria append-only verificável (Seções 6.6/15).
-- **Cálculo correto** (piso R$500) e **saldo remanescente** acumulado (Seções 5.4/6.1) — validado em `test.js`.
-- **Recálculo/inutilização** ao cancelar nota (Seção 6.7/6.8).
-- **Apuração** com número contemplado configurável e **regra de aproximação** (Seção 7).
-- **Segurança básica**: rate limit, sessão por token, CPF mascarado, senha em hash.
+---
 
-## Pontos que dependem de validação jurídica / SPA (⚖️)
+## O que sustenta a auditoria
 
-- Modalidade exata, nº de dígitos e séries do Número da Sorte.
-- **Regra de composição** do número contemplado a partir da Loteria Federal.
-- Regra de aproximação e de suplência.
-- Lista de produtos vedados e de lojas/CNPJs participantes.
-- Vedação de participação (funcionários, lojistas, familiares).
-- Prazos de prescrição do prêmio e de prestação de contas.
+**Unicidade do Número da Sorte.** Emissão dentro de uma transação com `SELECT ... FOR UPDATE` na campanha, mais índice `UNIQUE (campanha_id, serie, numero)` como segunda barreira. Testado com 20 transações simultâneas emitindo 100 números: todos distintos.
 
-Estes pontos estão **parametrizados** em `db.js` (`campanha`) e devem refletir o **regulamento aprovado**.
+**Cadeia de hash.** Cada número guarda o hash do anterior, na ordem real de emissão (coluna `seq`, monotônica — `id` é aleatório e `emitido_em` colide no mesmo milissegundo). A verificação confere o elo **e** recalcula o hash a partir dos dados gravados: trocar o número contemplado sem mexer nos hashes também é detectado.
+
+**Trilha append-only.** Triggers no banco recusam `UPDATE`/`DELETE` na auditoria e `DELETE` em Números da Sorte — números só mudam de status para `INUTILIZADO`/`CANCELADO`, nunca somem. A gravação da trilha é serializada por lock consultivo; sem ele, requisições simultâneas bifurcariam a cadeia.
+
+**Snapshot da apuração.** O sorteio registra o SHA-256 de todos os números ativos no instante da apuração, travando a campanha durante a operação.
+
+**Limite honesto:** quem tiver acesso de escrita ao banco *e* conhecer o algoritmo ainda pode recalcular a cadeia inteira. O que sustenta a prova nesse cenário é o cruzamento entre a cadeia, o `snapshot_hash` da apuração e a trilha de auditoria — não a cadeia sozinha.
+
+**Dados pessoais (LGPD).** CPF cifrado em repouso (AES-256-GCM) com hash determinístico separado para busca; consentimento registrado por finalidade, com versão, IP e dispositivo; marketing consentido em separado, nunca como condição para participar. Senhas em scrypt. As fotos das notas ficam no banco, com SHA-256, e não em disco efêmero.
+
+---
+
+## Pendências conhecidas
+
+- **MFA (TOTP) no painel administrativo** — a coluna existe no schema, o fluxo não está implementado.
+- **Elegibilidade da promotora** e demais pontos em aberto: ver o Dossiê enviado ao jurídico.
+- **Volume das fotos** — a até 6 MB por nota, o plano atual do banco (1 GB) comporta a ordem de algumas centenas de notas. Monitorar e ampliar se necessário.

@@ -1,13 +1,19 @@
 {
-  "name": "compre-e-concorra-aldeia-da-serra",
-  "version": "1.0.0",
-  "description": "Protótipo funcional do sistema de campanha promocional 'Compre e Concorra' — Shopping Aldeia da Serra. Sem dependências externas (Node puro).",
+  "name": "aldeia-premia",
+  "version": "2.0.0",
+  "description": "Aldeia Premia — sistema de gestão de campanha promocional (Compre e Concorra), Shopping Aldeia da Serra. Node + PostgreSQL.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test.js"
+    "test": "node test.js",
+    "test:integracao": "node test-integracao.js"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "license": "UNLICENSED",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "pg": "^8.22.0"
+  }
 }
