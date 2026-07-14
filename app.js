@@ -21,6 +21,18 @@ function irView(v) {
 }
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => irView(b.dataset.view));
 
+// -------- Banner de cookies (LGPD) --------
+// A escolha fica no navegador do visitante; nenhum dado é enviado ao servidor por aqui.
+function cookies(aceitou) {
+  try { localStorage.setItem('aldeia_cookies', aceitou ? 'aceitos' : 'necessarios'); } catch {}
+  $('cookie-bar').classList.add('hidden');
+}
+(function initCookies() {
+  let escolha = null;
+  try { escolha = localStorage.getItem('aldeia_cookies'); } catch {}
+  if (!escolha) $('cookie-bar').classList.remove('hidden');
+})();
+
 // -------- Stepper --------
 function passo(n) {
   document.querySelectorAll('#stepper .step').forEach(s => s.classList.toggle('on', +s.dataset.s <= n));

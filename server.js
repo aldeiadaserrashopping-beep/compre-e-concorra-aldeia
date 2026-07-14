@@ -64,6 +64,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) return serveFile(res, 'index.html', 'text/html');
     if (req.method === 'GET' && p === '/app.js') return serveFile(res, 'app.js', 'application/javascript');
     if (req.method === 'GET' && p === '/logo.svg') return serveFile(res, 'logo.svg', 'image/svg+xml');
+    // Páginas jurídicas (LGPD) — públicas
+    if (req.method === 'GET' && (p === '/politica-de-privacidade' || p === '/politica.html'))
+      return serveFile(res, 'politica.html', 'text/html');
+    if (req.method === 'GET' && (p === '/regulamento' || p === '/regulamento.html'))
+      return serveFile(res, 'regulamento.html', 'text/html');
     // Painel administrativo — página separada do site do cliente
     if (req.method === 'GET' && (p === '/admin' || p === '/admin.html')) return serveFile(res, 'admin.html', 'text/html');
     if (req.method === 'GET' && p === '/admin.js') return serveFile(res, 'admin.js', 'application/javascript');

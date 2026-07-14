@@ -153,9 +153,14 @@
         <div><label>E-mail</label><input id="c-email"></div></div>
       <div class="row"><div><label>Cidade</label><input id="c-cidade"></div>
         <div style="max-width:110px"><label>UF</label><input id="c-uf" maxlength="2" placeholder="SP"></div></div>
-      <div class="chk"><input type="checkbox" id="c-reg"><span>Li e aceito o <a href="#">Regulamento</a> da campanha. <small class="help">(obrigatório)</small></span></div>
-      <div class="chk"><input type="checkbox" id="c-priv"><span>Li e aceito a <a href="#">Política de Privacidade (LGPD)</a>. <small class="help">(obrigatório)</small></span></div>
-      <div class="chk"><input type="checkbox" id="c-mkt"><span>Quero receber novidades e ofertas do shopping. <small class="help">(opcional)</small></span></div>
+      <div class="chk"><input type="checkbox" id="c-reg"><span>Declaro que li e aceito o <a href="/regulamento" target="_blank">Regulamento</a> e a
+        <a href="/politica-de-privacidade" target="_blank">Política de Privacidade</a> da promoção "Compre e Concorra" do Shopping Aldeia da Serra.
+        Declaro ser maior de 18 anos, que o CPF informado é o meu, e que os dados e comprovantes cadastrados são verdadeiros.
+        <small class="help">(obrigatório)</small></span></div>
+      <div class="chk"><input type="checkbox" id="c-priv"><span>Autorizo o tratamento dos meus dados pessoais para minha participação na promoção,
+        nos termos da <a href="/politica-de-privacidade" target="_blank">Política de Privacidade</a>. <small class="help">(obrigatório)</small></span></div>
+      <div class="chk"><input type="checkbox" id="c-mkt"><span>Quero receber novidades, ofertas e comunicações do Shopping Aldeia da Serra por e-mail, SMS e/ou WhatsApp.
+        <small class="help">(opcional — não é condição para participar e pode ser revogado a qualquer momento)</small></span></div>
       <button class="btn" onclick="cadastrar()">Criar meu cadastro e continuar →</button>
       <div id="c-msg"></div>
       <p style="margin-top:18px"><small class="help">Já tem cadastro? <a href="#" onclick="irView('area');return false">Acesse sua área com o CPF</a>.</small></p>
@@ -219,9 +224,22 @@
 
 <footer>
   <b>Aldeia Premia</b> · plataforma de campanhas do Shopping Aldeia da Serra<br>
+  <a href="/politica-de-privacidade">Política de Privacidade</a> ·
+  <a href="/regulamento">Regulamento</a> ·
+  Encarregado de Dados (DPO): <a href="mailto:marketing@shoppingaldeiadaserra.com.br">marketing@shoppingaldeiadaserra.com.br</a><br>
   Campanha promocional sujeita a autorização da SPA/MF ·
   <span id="autoriz">Protótipo — validação jurídica pendente</span>
 </footer>
+
+<div id="cookie-bar" class="hidden" style="position:sticky;bottom:0;background:var(--verde);color:var(--areia);
+  padding:14px 24px;display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:13.5px;z-index:60">
+  <span><b>Usamos cookies</b> para o funcionamento da plataforma e, com o seu aceite, para melhorar sua experiência.
+    Veja a <a href="/politica-de-privacidade" style="color:var(--dourado)">Política de Privacidade</a>.</span>
+  <span style="display:flex;gap:8px">
+    <button class="btn gold" style="margin:0;padding:8px 16px" onclick="cookies(true)">Aceitar</button>
+    <button class="btn ghost" style="margin:0;padding:8px 16px;color:var(--areia);border-color:rgba(214,196,168,.4)" onclick="cookies(false)">Só os necessários</button>
+  </span>
+</div>
 <script src="/app.js"></script>
 </body>
 </html>
