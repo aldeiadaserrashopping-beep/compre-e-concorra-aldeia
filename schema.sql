@@ -4,6 +4,17 @@
 -- Referência: Especificação Funcional, Seção 10 (Banco de Dados)
 -- =====================================================================
 
+-- ------------------------------------------------------------- sentinela
+-- Guarda um texto conhecido cifrado com a APP_KEY em uso. No boot, o sistema
+-- tenta decifrá-lo: se falhar, a chave mudou e TODOS os CPFs gravados estão
+-- ilegíveis. Melhor descobrir no deploy, com a versão antiga ainda no ar, do
+-- que na véspera da apuração, quando a lista do SCPC não puder mais ser gerada.
+CREATE TABLE IF NOT EXISTS sentinela_chave (
+  id        TEXT PRIMARY KEY,
+  valor     TEXT NOT NULL,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ---------------------------------------------------------------- campanha
 CREATE TABLE IF NOT EXISTS campanha (
   id                  TEXT PRIMARY KEY,

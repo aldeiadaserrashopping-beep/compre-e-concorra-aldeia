@@ -49,7 +49,12 @@ function chave() {
   const k = process.env.APP_KEY || '';
   if (!k) throw new Error('APP_KEY não definida — necessária para cifrar CPF em repouso.');
   const buf = /^[0-9a-f]{64}$/i.test(k) ? Buffer.from(k, 'hex') : Buffer.from(k, 'base64');
-  if (buf.length !== 32) throw new Error('APP_KEY deve ter 32 bytes (64 hex ou base64).');
+  if (buf.length !== 32) {
+    throw new Error(
+      `APP_KEY tem ${buf.length} bytes; o AES-256 exige exatamente 32. ` +
+      'Atenção: geradores de secret costumam produzir 16 bytes (32 caracteres hex). ' +
+      'Gere assim: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+  }
   return buf;
 }
 function cifra(txt) {
@@ -79,6 +84,32 @@ function conferirSenha(senha, guardado) {
   return calc.length === esperado.length && crypto.timingSafeEqual(calc, esperado);
 }
 
+const SENTINELA = 'aldeia-premia-sentinela-v1';
+
+/**
+ * Confere que a APP_KEY atual é a MESMA que cifrou os dados já gravados.
+ *
+ * Trocar a APP_KEY não dá erro na hora: o sistema sobe, aceita cadastros novos
+ * e só falha quando alguém tenta ler um CPF antigo — possivelmente na hora de
+ * gerar a lista do SCPC, com a campanha encerrada e sem como voltar atrás.
+ * A sentinela transforma isso num erro de boot, alto e imediato.
+ */
+async function conferirSentinela() {
+  const { rows } = await pool.query("SELECT valor FROM sentinela_chave WHERE id = 'app_key'");
+  if (!rows.length) {
+    await pool.query("INSERT INTO sentinela_chave (id, valor) VALUES ('app_key', $1)", [cifra(SENTINELA)]);
+    return;
+  }
+  try {
+    if (decifra(rows[0].valor) !== SENTINELA) throw new Error('conteúdo inesperado');
+  } catch {
+    throw new Error(
+      'A APP_KEY atual NÃO é a que cifrou os dados deste banco. Os CPFs já ' +
+      'gravados não podem ser lidos com esta chave. Restaure a APP_KEY original ' +
+      'antes de subir — não apague a sentinela para "resolver".');
+  }
+}
+
 // ---------- infraestrutura ----------
 const q = (texto, params) => pool.query(texto, params);
 const ex = (cli) => cli || pool;
@@ -99,8 +130,14 @@ async function tx(fn) {
 }
 
 async function init(campanhaPadrao) {
+  // Valida a APP_KEY AQUI, no boot, e não no primeiro uso: uma chave errada
+  // precisa derrubar o deploy (o Render mantém a versão anterior no ar), e não
+  // esperar o primeiro participante se cadastrar para dar erro na cara dele.
+  chave();
+
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   await pool.query(sql);
+  await conferirSentinela();
 
   const { rows } = await pool.query('SELECT id FROM campanha WHERE id = $1', [campanhaPadrao.id]);
   if (!rows.length) {
