@@ -92,6 +92,17 @@
       <div id="a-sorteio"></div>
     </div>
 
+    <div class="card">
+      <h2>Lista de Participantes · SCPC</h2>
+      <p class="hint">Arquivo para a <b>Prestação de Contas</b> na SPA (aba "Apurações"), no layout exigido
+        pela Nota 23 do SCPC: CSV, separador vírgula, cabeçalho
+        <code>cpf,cnpj,nome,numero_serie,elemento_sorteavel,data_hora_participacao,email,telefone,estrangeiro</code>.
+        Gera <b>uma linha por Número da Sorte ativo</b>. Valide antes de enviar.</p>
+      <button class="btn ghost" onclick="validarSCPC()">1. Validar lista</button>
+      <a class="btn gold" style="display:inline-block;text-decoration:none" id="a-scpc" href="#">2. Baixar CSV do SCPC</a>
+      <div id="a-scpc-msg"></div>
+    </div>
+
     <div class="card"><h2>Auditoria</h2>
       <button class="btn ghost" onclick="verAuditoria()">Verificar integridade da cadeia</button>
       <a class="btn ghost" style="display:inline-block;text-decoration:none" id="a-export" href="#">Exportar participantes (CSV)</a>

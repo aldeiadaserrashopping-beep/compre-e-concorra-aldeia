@@ -27,7 +27,12 @@ function rateLimit(ip) {
 // ---------- Sessões admin (token em memória) ----------
 const sessoes = new Map();
 function novaSessao(usuario) { const t = crypto.randomBytes(16).toString('hex'); sessoes.set(t, { usuario, criadoEm: Date.now() }); return t; }
-function auth(req) { const t = (req.headers['authorization'] || '').replace('Bearer ', ''); return sessoes.get(t); }
+// Token pelo cabeçalho Authorization ou, para downloads (<a href>), pela query ?token=
+function auth(req, url) {
+  const t = (req.headers['authorization'] || '').replace('Bearer ', '')
+    || (url && url.searchParams.get('token')) || '';
+  return sessoes.get(t);
+}
 
 function send(res, code, obj) {
   const body = JSON.stringify(obj);
@@ -118,7 +123,7 @@ const server = http.createServer(async (req, res) => {
 
     // -------- API admin (protegida) --------
     if (p.startsWith('/api/v1/admin/')) {
-      const s = auth(req);
+      const s = auth(req, url);
       if (!s) return send(res, 401, { erro: 'E-AUTH-02', mensagem: 'Não autenticado.' });
       const usuario = s.usuario;
 
@@ -159,6 +164,54 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'GET' && p === '/api/v1/admin/auditoria') {
         return send(res, 200, { integridade: db.verificarAuditoria(), registros: db.load().auditoria.slice(-200) });
       }
+      // ---- LISTA DE PARTICIPANTES no layout do SCPC (Nota 23, de 16/04/2026) ----
+      // Carga na aba "Apurações" da "Prestação de Contas". CSV, separador vírgula,
+      // aspas duplas como delimitador opcional, máx. 250MB por arquivo.
+      // Cabeçalho exato: cpf,cnpj,nome,numero_serie,elemento_sorteavel,data_hora_participacao,email,telefone,estrangeiro
+      if (req.method === 'GET' && p === '/api/v1/admin/export/lista-participantes-scpc.csv') {
+        const st = db.load();
+        const linhas = ['cpf,cnpj,nome,numero_serie,elemento_sorteavel,data_hora_participacao,email,telefone,estrangeiro'];
+        for (const n of st.numeros.filter(x => x.status === 'ATIVO')) {
+          const part = st.participantes.find(x => x.id === n.participanteId);
+          if (!part) continue;
+          linhas.push([
+            String(part.cpf || '').replace(/\D/g, ''),          // 1 cpf — 11 dígitos
+            '',                                                  // 2 cnpj — vazio (participantes são pessoas físicas)
+            csvEsc(part.nome || ''),                             // 3 nome — 6..100
+            String(parseInt(n.serie, 10)),                       // 4 numero_serie — 1..8 dígitos
+            String(n.numero),                                    // 5 elemento_sorteavel — 1..5 dígitos
+            dataHoraSCPC(n.emitidoEm),                           // 6 data_hora_participacao
+            csvEsc(part.email || ''),                            // 7 email (opcional)
+            csvEsc(String(part.telefone || '').replace(/\D/g, '')), // 8 telefone (opcional)
+            '',                                                  // 9 estrangeiro (opcional: sim/yes)
+          ].join(','));
+        }
+        res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename=lista_participantes_scpc.csv' });
+        return res.end(linhas.join('\r\n'));
+      }
+
+      // Valida a lista contra as regras do SCPC antes de enviar (evita recusa do arquivo)
+      if (req.method === 'GET' && p === '/api/v1/admin/export/lista-participantes-scpc/validar') {
+        const st = db.load();
+        const problemas = [];
+        const ativos = st.numeros.filter(x => x.status === 'ATIVO');
+        for (const n of ativos) {
+          const part = st.participantes.find(x => x.id === n.participanteId);
+          if (!part) { problemas.push({ numero: n.numero, erro: 'Número sem participante vinculado.' }); continue; }
+          const cpf = String(part.cpf || '').replace(/\D/g, '');
+          const nome = String(part.nome || '');
+          const tel = String(part.telefone || '').replace(/\D/g, '');
+          const email = String(part.email || '');
+          if (cpf.length !== 11) problemas.push({ numero: n.numero, cpf, erro: 'CPF deve ter 11 dígitos.' });
+          if (nome.length < 6 || nome.length > 100) problemas.push({ numero: n.numero, cpf, erro: `Nome deve ter 6 a 100 caracteres (tem ${nome.length}).` });
+          if (String(n.numero).length > 5) problemas.push({ numero: n.numero, cpf, erro: 'Elemento sorteável excede 5 dígitos.' });
+          if (String(parseInt(n.serie, 10)).length > 8) problemas.push({ numero: n.numero, cpf, erro: 'Número de série excede 8 dígitos.' });
+          if (email && (email.length < 6 || email.length > 70)) problemas.push({ numero: n.numero, cpf, erro: `E-mail deve ter 6 a 70 caracteres (tem ${email.length}).` });
+          if (tel && (tel.length < 10 || tel.length > 20)) problemas.push({ numero: n.numero, cpf, erro: `Telefone deve ter 10 a 20 caracteres (tem ${tel.length}).` });
+        }
+        return send(res, 200, { totalLinhas: ativos.length, ok: problemas.length === 0, problemas: problemas.slice(0, 200), totalProblemas: problemas.length });
+      }
+
       if (req.method === 'GET' && p === '/api/v1/admin/export/participantes.csv') {
         const rows = [['id', 'nome', 'cpf_mascarado', 'cidade', 'uf', 'valor_elegivel', 'numeros_ativos']];
         db.load().participantes.forEach(pt => rows.push([pt.id, pt.nome, mask(pt.cpf), pt.cidade, pt.uf, core.fromCents(pt.valorElegivelCents), pt.numerosAtivos]));
@@ -180,6 +233,25 @@ function serveFile(res, rel, type) {
   } catch { res.writeHead(404); res.end('Not found'); }
 }
 function pub(c, m) { const e = new Error(m); e.publico = true; e.codigo = c; return e; }
+
+// Escape CSV conforme SCPC: aspas duplas como delimitador opcional; obrigatório
+// quando o conteúdo tiver vírgula (ex.: "Razão Social, ME"). Aspas internas são duplicadas.
+function csvEsc(v) {
+  const s = String(v ?? '');
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+// data_hora_participacao no formato DD/MM/AAAA HH:MM:SS, sempre no fuso de Brasília
+// (o servidor em produção roda em UTC; sem isso a hora sairia adiantada).
+function dataHoraSCPC(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const f = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
+  const p = Object.fromEntries(f.formatToParts(d).map(x => [x.type, x.value]));
+  return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}:${p.second}`;
+}
 function mask(cpf) { return String(cpf).replace(/^(\d{3})\d{6}(\d{2})$/, '$1.***.***-$2'); }
 
 if (require.main === module) {

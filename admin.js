@@ -17,7 +17,8 @@ async function adminLogin() {
     const r = await api('/api/v1/admin/login', 'POST', { email: $('a-email').value, senha: $('a-senha').value });
     TOKEN = r.token;
     $('login').classList.add('hidden'); $('painel').classList.remove('hidden');
-    $('a-export').href = '/api/v1/admin/export/participantes.csv';
+    $('a-export').href = `/api/v1/admin/export/participantes.csv?token=${TOKEN}`;
+    $('a-scpc').href = `/api/v1/admin/export/lista-participantes-scpc.csv?token=${TOKEN}`;
     dash(); listarNotas();
   } catch (e) { msg('a-msg', e.message, false); }
 }
@@ -43,6 +44,19 @@ async function apurar() {
       '<table><tr><th>Prêmio</th><th>Nº alvo</th><th>Regra</th><th>Contemplado</th><th>Ganhador</th></tr>' +
       r.ganhadores.map(g => `<tr><td>${g.premioOrdem}ª bike</td><td>${g.numeroAlvo}</td><td>${g.regra}</td><td>${g.numero || '—'}</td><td>${g.nome || 'SEM GANHADOR'}</td></tr>`).join('') + '</table>';
   } catch (e) { $('a-sorteio').innerHTML = `<div class="msg err">${e.message}</div>`; }
+}
+
+async function validarSCPC() {
+  try {
+    const r = await api('/api/v1/admin/export/lista-participantes-scpc/validar');
+    if (r.ok) {
+      $('a-scpc-msg').innerHTML = `<div class="msg ok">Lista válida ✔ — ${r.totalLinhas} linha(s) (1 por Número da Sorte ativo). Pode baixar e enviar ao SCPC.</div>`;
+      return;
+    }
+    $('a-scpc-msg').innerHTML = `<div class="msg err">${r.totalProblemas} problema(s) encontrados — o SCPC recusaria o arquivo. Corrija antes de enviar:</div>` +
+      '<table><tr><th>Elemento sorteável</th><th>CPF</th><th>Problema</th></tr>' +
+      r.problemas.map(p => `<tr><td>${p.numero || '-'}</td><td>${p.cpf || '-'}</td><td>${p.erro}</td></tr>`).join('') + '</table>';
+  } catch (e) { $('a-scpc-msg').innerHTML = `<div class="msg err">${e.message}</div>`; }
 }
 
 async function verAuditoria() {
