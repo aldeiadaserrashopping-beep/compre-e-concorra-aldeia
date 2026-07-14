@@ -26,7 +26,7 @@ const VAZIO = () => ({
     lojasParticipantesCNPJ: [
       '47361452000324', // AD LIFE — Sergios Vitoria Comercio de Calcados Ltda
       '59273034000100', // ASK SPOLETO — Ask Serra Foods Ltda
-      '58385800204',    // CACAU SHOW — consta como PESSOA FÍSICA (CPF) => CONFIRMAR CNPJ de emissão
+      '62506724000169', // CACAU SHOW — Aldeia Chocolates Ltda
       '57902761000156', // CLÍNICA DERMAVIVA
       '59302709000194', // GIRAFFAS — GFF Serra Foods Ltda
       '39829064000135', // HAVE FUN — Rick Comercio e Locacao Ltda

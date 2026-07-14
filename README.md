@@ -1,7 +1,8 @@
-# Sistema "Compre e Concorra" — Shopping Aldeia da Serra (Protótipo)
+# Aldeia Premia — Plataforma de Campanhas Promocionais
+## Shopping Aldeia da Serra · Campanha "Compre e Concorra" (Protótipo)
 
 Protótipo **funcional** do sistema de campanha promocional (2 bicicletas elétricas, 2 ganhadores,
-1 Número da Sorte a cada R$ 400,00). Implementa cadastro, upload/moderação de notas, **geração de
+1 Número da Sorte a cada R$ 500,00). Implementa cadastro, upload/moderação de notas, **geração de
 Números da Sorte únicos e auditáveis** (com hash encadeado), painel administrativo, apuração
 vinculada à Loteria Federal e trilha de auditoria com verificação de integridade.
 
@@ -37,7 +38,7 @@ node test.js
 1. **Cadastro** → aceite regulamento + privacidade → recebe um `ID`.
 2. **Minha Área** → entre com o ID → **envie uma nota** (ex.: R$ 1.250,00).
 3. **Painel Admin** → login → **Moderação de Notas** → **Aprovar** → o sistema gera automaticamente
-   3 Números da Sorte (1250 ÷ 400 = 3, sobra R$ 50,00 de saldo).
+   2 Números da Sorte (1250 ÷ 500 = 2, sobra R$ 250,00 de saldo).
 4. Volte à **Minha Área** → veja seus números e o saldo remanescente.
 5. **Painel Admin → Sorteio** → informe os 5 prêmios da Loteria Federal → **Apurar** → o sistema
    calcula o número contemplado e localiza o(s) ganhador(es) (com regra de aproximação/suplência).
@@ -59,7 +60,7 @@ node test.js
 
 - **Unicidade** dos números: alocação sequencial + verificação de colisão + histórico (Seção 6.3).
 - **Auditabilidade**: cada número tem `hashIntegridade` encadeado; auditoria append-only verificável (Seções 6.6/15).
-- **Cálculo correto** (piso R$400) e **saldo remanescente** acumulado (Seções 5.4/6.1) — validado em `test.js`.
+- **Cálculo correto** (piso R$500) e **saldo remanescente** acumulado (Seções 5.4/6.1) — validado em `test.js`.
 - **Recálculo/inutilização** ao cancelar nota (Seção 6.7/6.8).
 - **Apuração** com número contemplado configurável e **regra de aproximação** (Seção 7).
 - **Segurança básica**: rate limit, sessão por token, CPF mascarado, senha em hash.
