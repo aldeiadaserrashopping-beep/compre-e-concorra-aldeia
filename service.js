@@ -195,7 +195,13 @@ async function recalcularNumeros(cli, participanteId, usuario, ip, motivo) {
 }
 
 // ---------- SORTEIO (Seção 7) ----------
-async function apurar(premiosLoteria, usuario, ip) {
+// numeroSorteado: os 5 dígitos definidos pelo sorteio eletrônico na plataforma online (Cláusula 9).
+async function apurar(numeroSorteado, usuario, ip) {
+  const alvoSorteio = String(numeroSorteado || '').replace(/\D/g, '');
+  if (alvoSorteio.length < 1 || alvoSorteio.length > 5)
+    throw err('E-SORT-01', 'Informe o número sorteado na plataforma (1 a 5 dígitos).');
+  const numeroContemplado = alvoSorteio.padStart(5, '0');
+
   return store.tx(async (cli) => {
     const campanha = await store.getCampanha(cli, CAMPANHA.id, true); // trava: nenhum número novo durante a apuração
     const ativos = await store.numerosAtivos(cli);
@@ -207,17 +213,19 @@ async function apurar(premiosLoteria, usuario, ip) {
       .update(ativos.map(n => n.hashIntegridade).join('')).digest('hex');
 
     const sorteioId = await store.criarSorteio(cli, {
-      campanhaId: campanha.id, resultadoLoteria: premiosLoteria, snapshotHash, executadoPor: usuario,
+      campanhaId: campanha.id,
+      resultadoLoteria: { numeroSorteado: numeroContemplado, origem: 'plataforma_online' },
+      snapshotHash, executadoPor: usuario,
     });
 
     const excluir = [];
     const ganhadores = [];
     let ultimoNumero = null; // número contemplado no prêmio anterior
     for (let premio = 1; premio <= campanha.qtdGanhadores; premio++) {
-      // 1º prêmio: composição da Loteria Federal (cláusula 9.2).
-      // Demais prêmios: PRÓXIMO NÚMERO VÁLIDO imediatamente superior ao anterior (cláusula 9.4).
+      // 1º prêmio: o Número Contemplado sorteado na plataforma online (Cláusula 9).
+      // Demais prêmios: PRÓXIMO NÚMERO VÁLIDO imediatamente superior ao anterior (Cláusula 9).
       const numeroAlvo = premio === 1
-        ? core.numeroContempladoPadrao(premiosLoteria)
+        ? numeroContemplado
         : String((parseInt(ultimoNumero, 10) + 1) % 100000).padStart(5, '0');
       const { ganhador, regra } = core.localizarGanhador(numeroAlvo, ativos, '01', excluir);
       let g;
@@ -240,10 +248,10 @@ async function apurar(premiosLoteria, usuario, ip) {
 
     await store.auditar(cli, {
       entidade: 'sorteio', entidadeId: sorteioId, acao: 'APURACAO', usuario, ip,
-      valorNovo: { snapshotHash, resultadoLoteria: premiosLoteria, ganhadores },
+      valorNovo: { snapshotHash, numeroSorteado: numeroContemplado, ganhadores },
     });
     return { id: sorteioId, campanhaId: campanha.id, dataApuracao: new Date().toISOString(),
-             resultadoLoteria: premiosLoteria, snapshotHash, totalNumerosAtivos: ativos.length, ganhadores };
+             numeroSorteado: numeroContemplado, snapshotHash, totalNumerosAtivos: ativos.length, ganhadores };
   });
 }
 

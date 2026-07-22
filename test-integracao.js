@@ -234,8 +234,10 @@ async function main() {
     assert.ok(lista.every(r => r.nome.length >= 6 && r.nome.length <= 100));
   });
 
-  await t('Apuração: 2 prêmios, ganhadores de participantes distintos (cláusula 9.4)', async () => {
-    const s = await svc.apurar(['12345', '67890', '11111', '22222', '33333'], 'admin@teste', '200.0.0.1');
+  await t('Apuração: número sorteado na plataforma, 2 ganhadores distintos (Cláusula 9)', async () => {
+    const s = await svc.apurar('12345', 'admin@teste', '200.0.0.1');
+    assert.strictEqual(s.numeroSorteado, '12345', 'deve registrar o número sorteado');
+    assert.strictEqual(s.ganhadores[0].numeroAlvo, '12345', '1º prêmio parte do número sorteado');
     assert.strictEqual(s.ganhadores.length, 2);
     assert.ok(s.snapshotHash && s.snapshotHash.length === 64, 'snapshot deve ser SHA-256');
     const comGanhador = s.ganhadores.filter(g => g.status === 'CONTEMPLADO');
@@ -249,7 +251,8 @@ async function main() {
     const { rows } = await store.q('SELECT count(*)::int AS n FROM ganhador');
     assert.strictEqual(rows[0].n, 2);
     const s = await store.q('SELECT resultado_loteria FROM sorteio');
-    assert.deepStrictEqual(s.rows[0].resultado_loteria, ['12345', '67890', '11111', '22222', '33333']);
+    assert.strictEqual(s.rows[0].resultado_loteria.numeroSorteado, '12345');
+    assert.strictEqual(s.rows[0].resultado_loteria.origem, 'plataforma_online');
   });
 
   await t('Senha do admin é scrypt e confere', async () => {

@@ -203,9 +203,10 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, await svc.cancelarNota(p.split('/')[5], motivo || 'Não especificado', usuario, ip));
       }
       if (req.method === 'POST' && p === '/api/v1/admin/sorteio/apurar') {
-        const { premiosLoteria } = await body(req);
-        if (!Array.isArray(premiosLoteria) || premiosLoteria.length < 5) throw pub('E-SORT', 'Informe os 5 prêmios da Loteria Federal.');
-        return send(res, 200, await svc.apurar(premiosLoteria, usuario, ip));
+        const { numeroSorteado } = await body(req);
+        const n = String(numeroSorteado || '').replace(/\D/g, '');
+        if (n.length < 1 || n.length > 5) throw pub('E-SORT', 'Informe o número sorteado na plataforma (1 a 5 dígitos).');
+        return send(res, 200, await svc.apurar(n, usuario, ip));
       }
       if (req.method === 'GET' && p === '/api/v1/admin/auditoria') {
         return send(res, 200, {

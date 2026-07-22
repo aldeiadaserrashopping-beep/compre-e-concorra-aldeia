@@ -81,12 +81,10 @@
     </div>
 
     <div class="card">
-      <h2>Sorteio · Loteria Federal</h2>
-      <p class="hint">Informe os 5 prêmios da Loteria Federal. A regra de composição do número contemplado deve constar do regulamento aprovado pela SPA.</p>
+      <h2>Sorteio</h2>
+      <p class="hint">Faça o sorteio na plataforma online, entre os Números da Sorte válidos, e informe aqui o <b>número sorteado</b> (até 5 dígitos). O sistema localiza o ganhador, aplica a aproximação e define o 2º ganhador (participante distinto), conforme a Cláusula 9 do regulamento.</p>
       <div class="row">
-        <div><label>1º</label><input id="l1" value="54321"></div><div><label>2º</label><input id="l2" value="12678"></div>
-        <div><label>3º</label><input id="l3" value="90123"></div><div><label>4º</label><input id="l4" value="45674"></div>
-        <div><label>5º</label><input id="l5" value="88895"></div>
+        <div style="max-width:220px"><label>Número sorteado</label><input id="num-sorteado" maxlength="5" inputmode="numeric" placeholder="ex.: 04821"></div>
       </div>
       <button class="btn gold" onclick="apurar()">Executar apuração</button>
       <div id="a-sorteio"></div>

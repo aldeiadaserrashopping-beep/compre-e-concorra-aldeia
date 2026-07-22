@@ -38,8 +38,9 @@ async function cancelar(id) { const m = prompt('Motivo do cancelamento:', 'Nota 
 
 async function apurar() {
   try {
-    const premios = ['l1', 'l2', 'l3', 'l4', 'l5'].map(i => $(i).value);
-    const r = await api('/api/v1/admin/sorteio/apurar', 'POST', { premiosLoteria: premios });
+    const numeroSorteado = ($('num-sorteado').value || '').replace(/\D/g, '');
+    if (numeroSorteado.length < 1 || numeroSorteado.length > 5) { $('a-sorteio').innerHTML = '<div class="msg err">Informe o número sorteado (1 a 5 dígitos).</div>'; return; }
+    const r = await api('/api/v1/admin/sorteio/apurar', 'POST', { numeroSorteado });
     $('a-sorteio').innerHTML = `<div class="msg ok">Apuração registrada · snapshot <code>${r.snapshotHash.slice(0, 16)}…</code></div>` +
       '<table><tr><th>Prêmio</th><th>Nº alvo</th><th>Regra</th><th>Contemplado</th><th>Ganhador</th></tr>' +
       r.ganhadores.map(g => `<tr><td>${g.premioOrdem}ª bike</td><td>${g.numeroAlvo}</td><td>${g.regra}</td><td>${g.numero || '—'}</td><td>${g.nome || 'SEM GANHADOR'}</td></tr>`).join('') + '</table>';
