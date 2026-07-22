@@ -89,6 +89,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) return serveFile(res, 'index.html', 'text/html');
     if (req.method === 'GET' && p === '/app.js') return serveFile(res, 'app.js', 'application/javascript');
     if (req.method === 'GET' && p === '/logo.svg') return serveFile(res, 'logo.svg', 'image/svg+xml');
+    if (req.method === 'GET' && p === '/arte-campanha.jpg') return serveFile(res, 'arte-campanha.jpg', 'image/jpeg');
     // Páginas jurídicas (LGPD) — públicas
     if (req.method === 'GET' && (p === '/politica-de-privacidade' || p === '/politica.html'))
       return serveFile(res, 'politica.html', 'text/html');
