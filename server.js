@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const store = require('./store-pg');
 const svc = require('./service');
 const core = require('./core');
+const email = require('./email');
 const CAMPANHA = require('./campanha.config');
 
 const PORT = process.env.PORT || 3000;
@@ -115,7 +116,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/v1/notas') {
       const dados = await body(req);
       if (!dados.participanteId) throw pub('E-VAL', 'participanteId obrigatório.');
-      return send(res, 201, await svc.enviarNota(dados.participanteId, dados, ip, ua));
+      const nota = await svc.enviarNota(dados.participanteId, dados, ip, ua);
+      // Aviso ao time por e-mail (não bloqueia a resposta ao participante)
+      store.q("SELECT count(*)::int AS n FROM nota_fiscal WHERE status='EM_ANALISE'")
+        .then(r => email.avisarNotaPendente(r.rows[0].n)).catch(() => {});
+      return send(res, 201, nota);
     }
 
     if (req.method === 'POST' && p === '/api/v1/participantes/login') {
