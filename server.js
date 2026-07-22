@@ -96,9 +96,12 @@ const server = http.createServer(async (req, res) => {
       return serveFile(res, 'politica.html', 'text/html');
     if (req.method === 'GET' && (p === '/regulamento' || p === '/regulamento.html'))
       return serveFile(res, 'regulamento.html', 'text/html');
-    // Painel administrativo — página separada do site do cliente
-    if (req.method === 'GET' && (p === '/admin' || p === '/admin.html')) return serveFile(res, 'admin.html', 'text/html');
-    if (req.method === 'GET' && p === '/admin.js') return serveFile(res, 'admin.js', 'application/javascript');
+    // Painel administrativo em endereço não-adivinhável (pode ser trocado por env
+    // ADMIN_PATH sem novo deploy de código). O antigo /admin devolve 404, como se
+    // não existisse painel nenhum.
+    const ADMIN_PATH = process.env.ADMIN_PATH || '/gestao-8k42vx';
+    if (req.method === 'GET' && p === ADMIN_PATH) return serveFile(res, 'admin.html', 'text/html');
+    if (req.method === 'GET' && p === ADMIN_PATH + '.js') return serveFile(res, 'admin.js', 'application/javascript');
 
     // -------- API pública --------
     if (req.method === 'GET' && p === '/api/v1/campanha') {
@@ -315,7 +318,7 @@ async function subir() {
     console.log('  ║   Aldeia Premia · Shopping Aldeia da Serra            ║');
     console.log('  ╚══════════════════════════════════════════════════════╝\n');
     console.log(`  Portal:   http://localhost:${PORT}`);
-    console.log(`  Painel:   http://localhost:${PORT}/admin`);
+    console.log(`  Painel:   http://localhost:${PORT}${process.env.ADMIN_PATH || '/gestao-8k42vx'}`);
     console.log(`  Banco:    conectado`);
     console.log(`  Campanha: ${CAMPANHA.dataInicio} a ${CAMPANHA.dataFim}`);
     console.log(`  SPA/MF:   ${CAMPANHA.numCertificadoSPA || 'certificado ainda não informado (modo pré-autorização)'}\n`);
