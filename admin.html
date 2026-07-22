@@ -64,11 +64,10 @@
   <div id="login" class="card" style="max-width:440px;margin:40px auto">
     <h2>Entrar</h2>
     <p class="hint">Acesso exclusivo da administração da campanha.</p>
-    <label>E-mail</label><input id="a-email" value="admin@aldeia.com.br">
-    <label>Senha</label><input id="a-senha" type="password" value="admin123">
+    <label>E-mail</label><input id="a-email" autocomplete="username">
+    <label>Senha</label><input id="a-senha" type="password" autocomplete="current-password">
     <button class="btn" onclick="adminLogin()">Acessar painel</button>
     <div id="a-msg"></div>
-    <small class="help" style="display:block;margin-top:14px">Demo: admin@aldeia.com.br / admin123 · MFA obrigatório em produção.</small>
   </div>
 
   <!-- PAINEL -->
