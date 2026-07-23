@@ -117,29 +117,48 @@ function lerChave() {
 
 async function abrirScanner() {
   const v = $('qr-video');
-  if (!('BarcodeDetector' in window)) {
-    msg('n-msg', 'Seu navegador não lê QR automaticamente. Aponte a câmera do celular para o QR e cole o link/número no campo ao lado.', false);
-    return;
-  }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     v.srcObject = stream; v.classList.remove('hidden'); await v.play();
-    const det = new BarcodeDetector({ formats: ['qr_code'] });
+
+    // Dois motores de leitura: BarcodeDetector (nativo, Chrome/Android) e jsQR
+    // (reserva universal — iPhone/Safari não tem o nativo).
+    const usarNativo = ('BarcodeDetector' in window);
+    const det = usarNativo ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
+    const cv = document.createElement('canvas');
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+
+    const achou = (texto) => {
+      $('n-qrtexto').value = texto;
+      const chave = extrairChave(texto);
+      if (chave) { $('n-chave').value = chave; lerChave(); }
+      stream.getTracks().forEach(t => t.stop()); v.classList.add('hidden');
+    };
+
     const loop = async () => {
       if (v.classList.contains('hidden')) return;
       try {
-        const codes = await det.detect(v);
-        if (codes.length) {
-          $('n-qrtexto').value = codes[0].rawValue;
-          const chave = extrairChave(codes[0].rawValue);
-          if (chave) { $('n-chave').value = chave; lerChave(); }
-          stream.getTracks().forEach(t => t.stop()); v.classList.add('hidden'); return;
+        if (usarNativo) {
+          const codes = await det.detect(v);
+          if (codes.length) return achou(codes[0].rawValue);
+        } else if (window.jsQR && v.videoWidth) {
+          // Reduz o quadro para 640px de largura: leitura rápida sem perder o QR
+          const w = Math.min(640, v.videoWidth);
+          const h = Math.round(v.videoHeight * w / v.videoWidth);
+          cv.width = w; cv.height = h;
+          ctx.drawImage(v, 0, 0, w, h);
+          const img = ctx.getImageData(0, 0, w, h);
+          const code = window.jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+          if (code && code.data) return achou(code.data);
         }
       } catch {}
-      requestAnimationFrame(loop);
+      // jsQR é mais pesado: escaneia ~6x/segundo em vez de a cada quadro
+      usarNativo ? requestAnimationFrame(loop) : setTimeout(loop, 160);
     };
     loop();
-  } catch { msg('n-msg', 'Não foi possível acessar a câmera. Cole o conteúdo do QR no campo.', false); }
+  } catch {
+    msg('n-msg', 'Não foi possível acessar a câmera. Permita o uso da câmera no navegador, ou digite a chave de 44 números que aparece abaixo do QR na nota.', false);
+  }
 }
 
 function previewFoto() {
