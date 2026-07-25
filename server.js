@@ -283,7 +283,12 @@ const server = http.createServer(async (req, res) => {
 function serveFile(res, rel, type) {
   try {
     const data = fs.readFileSync(path.join(__dirname, rel));
-    res.writeHead(200, { 'Content-Type': `${type}; charset=utf-8` });
+    // HTML/JS nunca ficam em cache: com a campanha no ar, um celular preso numa
+    // versão antiga da página significa bug "fantasma" que já foi corrigido no
+    // servidor. Imagens podem ser guardadas (mudam raramente e pesam mais).
+    const cache = (type === 'text/html' || type === 'application/javascript')
+      ? 'no-store' : 'public, max-age=86400';
+    res.writeHead(200, { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': cache });
     res.end(data);
   } catch { res.writeHead(404); res.end('Not found'); }
 }
