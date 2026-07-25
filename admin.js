@@ -72,8 +72,8 @@ async function verAuditoria() {
 
 function tabelaNotas(notas) {
   if (!notas.length) return '<small class="help">Nenhuma nota ainda.</small>';
-  return '<table><tr><th>ID</th><th>Origem</th><th>CNPJ</th><th>Evidência</th><th>Valor válido</th><th>Status</th><th>Ações</th></tr>' +
-    notas.map(n => `<tr><td>${n.id}</td><td>${n.origem || '-'}</td><td>${n.cnpjEmitente || '-'}</td>
+  return '<table><tr><th>Participante</th><th>Origem</th><th>CNPJ</th><th>Evidência</th><th>Valor válido</th><th>Status</th><th>Ações</th></tr>' +
+    notas.map(n => `<tr><td><b>${n.participanteNome || '—'}</b><br><small class="help">${n.participanteCpf || ''}</small></td><td>${n.origem || '-'}</td><td>${n.cnpjEmitente || '-'}</td>
       <td>${n.fotoUrl ? `<a href="${n.fotoUrl}?token=${TOKEN}" target="_blank">ver foto</a>` : '-'}</td>
       <td>${money((n.valorElegivelCents || 0) / 100)}</td>
       <td><span class="chip ${n.status}">${n.status.replace('_', ' ')}</span>${n.motivoRejeicao ? '<br><small class="help">' + n.motivoRejeicao + '</small>' : ''}</td>

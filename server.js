@@ -184,9 +184,14 @@ const server = http.createServer(async (req, res) => {
       }
       if (req.method === 'GET' && p === '/api/v1/admin/notas') {
         const notas = await store.listarNotas(null);
+        // Nome de quem enviou, para a moderação não precisar cruzar IDs à mão.
+        const parts = await store.listarParticipantes(null);
+        const quem = new Map(parts.map(pt => [pt.id, { nome: pt.nome, cpf: svc.mascararCpf(pt.cpf) }]));
         return send(res, 200, notas.map(n => ({
           ...n, valorTotal: core.fromCents(n.valorTotalCents),
           valorElegivel: core.fromCents(n.valorElegivelCents), fotoUrl: `/api/v1/admin/notas/${n.id}/foto`,
+          participanteNome: (quem.get(n.participanteId) || {}).nome || '—',
+          participanteCpf: (quem.get(n.participanteId) || {}).cpf || '',
         })));
       }
       if (req.method === 'GET' && p === '/api/v1/admin/participantes') {
