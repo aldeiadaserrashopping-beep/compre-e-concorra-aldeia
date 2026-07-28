@@ -215,7 +215,8 @@
           <div><label>Data da compra</label><input id="n-data" type="date"></div>
         </div>
         <label>Foto da nota (obrigatória)</label>
-        <input id="n-foto" type="file" accept="image/*" capture="environment" onchange="previewFoto()">
+        <small class="help" style="display:block;margin:-2px 0 6px">Capriche na foto: valor, data e CPF precisam estar legíveis. Nota digital? Envie o <b>print da tela</b> (não fotografe o celular).</small>
+        <input id="n-foto" type="file" accept="image/*" onchange="previewFoto()">
         <img id="n-preview" class="hidden" style="max-width:200px;border-radius:10px;margin-top:10px;border:1px solid var(--linha)">
         <input type="hidden" id="n-qrtexto">
         <button class="btn" onclick="enviarNota()">Enviar nota</button>

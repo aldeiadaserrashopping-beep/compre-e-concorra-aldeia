@@ -167,16 +167,61 @@ function previewFoto() {
   reader.onload = () => {
     const img = new Image();
     img.onload = () => {
+      // ---- Triagem de qualidade ANTES de aceitar a foto ----
+      // Barra os três defeitos que tornam a nota ilegível na moderação:
+      // resolução baixa, foto escura e foto desfocada/tremida. Não lê o conteúdo
+      // (isso segue com a moderação) — só garante que dá para ler.
+      const problema = analisarFoto(img);
+      if (problema) {
+        FOTO_B64 = null; $('n-foto').value = ''; $('n-preview').classList.add('hidden');
+        msg('n-msg', problema + ' Dica: se a nota for digital, envie o PRINT da tela em vez de fotografar o celular.', false);
+        return;
+      }
       const max = 1280, esc = Math.min(1, max / Math.max(img.width, img.height));
       const cv = document.createElement('canvas');
       cv.width = img.width * esc; cv.height = img.height * esc;
       cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
       FOTO_B64 = cv.toDataURL('image/jpeg', 0.7);
       $('n-preview').src = FOTO_B64; $('n-preview').classList.remove('hidden');
+      msg('n-msg', 'Foto ok! Confira o valor e envie.', true);
     };
     img.src = reader.result;
   };
   reader.readAsDataURL(f);
+}
+
+// Devolve a mensagem do problema, ou null se a foto está boa.
+// Limiares propositalmente tolerantes: melhor deixar passar uma foto mediana
+// (a moderação pega) do que travar um cliente com foto boa.
+function analisarFoto(img) {
+  if (Math.min(img.width, img.height) < 350)
+    return 'A imagem está pequena demais para leitura. Tire a foto novamente, mais perto da nota.';
+  const w = 512, h = Math.max(1, Math.round(img.height * w / img.width));
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, w, h);
+  const d = ctx.getImageData(0, 0, w, h).data;
+  // luminância média (0–255)
+  const g = new Float32Array(w * h);
+  let soma = 0;
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+    const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    g[j] = y; soma += y;
+  }
+  const media = soma / (w * h);
+  if (media < 35) return 'A foto está muito escura. Tire novamente em um lugar mais iluminado.';
+  // nitidez: variância do laplaciano (foto tremida/desfocada tem valor baixo)
+  let s = 0, s2 = 0, n = 0;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      const lap = 4 * g[i] - g[i - 1] - g[i + 1] - g[i - w] - g[i + w];
+      s += lap; s2 += lap * lap; n++;
+    }
+  }
+  const variancia = s2 / n - (s / n) * (s / n);
+  if (variancia < 20) return 'A foto parece tremida ou desfocada. Segure firme e tire novamente.';
+  return null;
 }
 
 // -------- Tabela de notas (visão do participante) --------
