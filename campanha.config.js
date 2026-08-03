@@ -43,6 +43,7 @@ module.exports = {
     '34230660000261', // VIA MIA — Vitoria Calçados Ltda
     '15743430000251', // OFTALMOPLUS — Centro de Cuidados Oftalmologicos e Especialidades Ltda
     '26217704000104', // ÓTICAS DINIZ — VLE Comercio de Otica Ltda
+    '59041432000193', // ÓTICAS DINIZ — segundo CNPJ (incluído em 28/07, durante a campanha)
     '46727672000102', // ÓTICAS MAIA — Oticas M.Maia Ltda
   ],
   status: 'ATIVA',
