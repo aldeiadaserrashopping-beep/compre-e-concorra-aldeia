@@ -44,7 +44,8 @@ module.exports = {
     '15743430000251', // OFTALMOPLUS — Centro de Cuidados Oftalmologicos e Especialidades Ltda
     '26217704000104', // ÓTICAS DINIZ — VLE Comercio de Otica Ltda
     '59041432000193', // ÓTICAS DINIZ — segundo CNPJ (incluído em 28/07, durante a campanha)
-    '03756360000199', // Loja incluída em 28/07, durante a campanha (nome a confirmar com o time)
+    '03756360000199', // O BOTICÁRIO — Flor de Baunilha Perfumaria e Cosméticos Ltda
+    '03756360000106', // O BOTICÁRIO — filial que emite as notas no shopping
     '46727672000102', // ÓTICAS MAIA — Oticas M.Maia Ltda
   ],
   status: 'ATIVA',

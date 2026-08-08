@@ -92,8 +92,13 @@ async function enviarNota(participanteId, nota, ip, userAgent) {
       throw err('E-NOTA-02', 'A nota deve estar no seu CPF.');
     // Loja participante (lista de CNPJs)
     if (campanha.lojasParticipantesCNPJ.length && cnpj &&
-        !campanha.lojasParticipantesCNPJ.includes(cnpj))
+        !campanha.lojasParticipantesCNPJ.includes(cnpj)) {
+      // Registra o CNPJ recusado: se uma loja participante ficou de fora da lista
+      // (filial nova, segundo CNPJ), o log mostra qual incluir — sem isso, a única
+      // pista seria o cliente reclamando por WhatsApp.
+      console.log('NOTA RECUSADA - CNPJ fora da lista:', cnpj);
       throw err('E-NOTA-04', 'Loja não participante.');
+    }
     // Data no período (RN-09): usa data informada (dia) ou o mês da chave
     const inicioMes = campanha.dataInicio.slice(0, 7);
     const fimMes = campanha.dataFim.slice(0, 7);

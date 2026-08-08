@@ -8,10 +8,20 @@ const svc = require('./service');
 
 module.exports = async function migracoes(store) {
   // ---- 1) Lojas incluídas durante a campanha (28/07) ----
-  for (const cnpj of ['59041432000193', '03756360000199']) {
+  const novas = [
+    { cnpj: '59041432000193', nome: 'ÓTICAS DINIZ', razao: 'Óticas Diniz (segundo CNPJ)' },
+    { cnpj: '03756360000199', nome: 'O BOTICÁRIO', razao: 'Flor de Baunilha Perfumaria e Cosméticos Ltda' },
+    // Filial que emite as notas no shopping (CNPJ impresso no cupom, 08/08).
+    { cnpj: '03756360000106', nome: 'O BOTICÁRIO', razao: 'Flor de Baunilha Perfumaria e Cosméticos Ltda (filial)' },
+  ];
+  for (const l of novas) {
     await store.q(
-      "INSERT INTO loja_participante (campanha_id,cnpj) VALUES ('CAMP-ALDEIA-2026',$1) ON CONFLICT DO NOTHING",
-      [cnpj]);
+      "INSERT INTO loja_participante (campanha_id,cnpj,nome,razao_social) VALUES ('CAMP-ALDEIA-2026',$1,$2,$3) ON CONFLICT DO NOTHING",
+      [l.cnpj, l.nome, l.razao]);
+    // Se já existia sem nome (inserida antes), completa o cadastro.
+    await store.q(
+      'UPDATE loja_participante SET nome = COALESCE(nome,$2), razao_social = COALESCE(razao_social,$3) WHERE cnpj = $1',
+      [l.cnpj, l.nome, l.razao]);
   }
 
   // ---- 2) Nota da Mariana Lima: valor digitado errado (R$ 1,28 em vez de R$ 1.278,00) ----
@@ -19,13 +29,6 @@ module.exports = async function migracoes(store) {
   // impediu o reenvio. Correção: ajustar o valor na nota ORIGINAL, registrar na
   // auditoria e aprovar. Só se aplica enquanto existir exatamente essa nota
   // rejeitada com o valor errado — depois de aprovada, nunca mais roda.
-  // Diagnóstico no log: todas as notas de participantes "mariana" (fica só no log privado).
-  const diag = await store.q(
-    `SELECT n.id, n.status, n.valor_total_cents, n.cnpj_emitente, p.nome
-     FROM nota_fiscal n JOIN participante p ON p.id = n.participante_id
-     WHERE p.nome ILIKE '%mariana%'`);
-  console.log('MIGRACAO diag notas mariana:', JSON.stringify(diag.rows));
-
   const r = await store.q(
     `SELECT n.id FROM nota_fiscal n JOIN participante p ON p.id = n.participante_id
      WHERE n.status IN ('REJEITADA','CANCELADA')
