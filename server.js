@@ -323,6 +323,9 @@ async function subir() {
   // o processo morre e o Render mantém a versão anterior no ar — melhor do que
   // atender participante com banco meio configurado.
   await store.init(CAMPANHA);
+  // Correções pontuais (idempotentes). Nunca derrubam o boot.
+  try { await require('./migracoes')(store); }
+  catch (e) { console.error('Migração pontual falhou (sistema sobe mesmo assim):', e.message); }
   server.listen(PORT, '0.0.0.0', () => {
     console.log('\n  ╔══════════════════════════════════════════════════════╗');
     console.log('  ║   Aldeia Premia · Shopping Aldeia da Serra            ║');
