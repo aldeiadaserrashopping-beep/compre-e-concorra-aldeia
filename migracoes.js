@@ -19,9 +19,19 @@ module.exports = async function migracoes(store) {
   // impediu o reenvio. Correção: ajustar o valor na nota ORIGINAL, registrar na
   // auditoria e aprovar. Só se aplica enquanto existir exatamente essa nota
   // rejeitada com o valor errado — depois de aprovada, nunca mais roda.
+  // Diagnóstico no log: todas as notas de participantes "mariana" (fica só no log privado).
+  const diag = await store.q(
+    `SELECT n.id, n.status, n.valor_total_cents, n.cnpj_emitente, p.nome
+     FROM nota_fiscal n JOIN participante p ON p.id = n.participante_id
+     WHERE p.nome ILIKE '%mariana%'`);
+  console.log('MIGRACAO diag notas mariana:', JSON.stringify(diag.rows));
+
   const r = await store.q(
     `SELECT n.id FROM nota_fiscal n JOIN participante p ON p.id = n.participante_id
-     WHERE n.status = 'REJEITADA' AND n.valor_total_cents = 128 AND p.nome ILIKE '%mariana%lima%'`);
+     WHERE n.status IN ('REJEITADA','CANCELADA')
+       AND n.valor_total_cents < 1000
+       AND n.cnpj_emitente IN ('26217704000104','59041432000193')
+       AND p.nome ILIKE '%mariana%'`);
   if (r.rows.length === 1) {
     const id = r.rows[0].id;
     await store.q(
