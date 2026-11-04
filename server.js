@@ -95,6 +95,8 @@ const server = http.createServer(async (req, res) => {
     // expõe a pasta inteira, serve só o que está declarado aqui.
     if (req.method === 'GET' && p === '/arte-campanha.jpg') return serveFile(res, 'arte-campanha.jpg', 'image/jpeg');
     if (req.method === 'GET' && p === '/arte-natal.jpg') return serveFile(res, 'arte-natal.jpg', 'image/jpeg');
+    // Miniatura do Open Graph: o WhatsApp busca esta imagem ao gerar o preview.
+    if (req.method === 'GET' && p === '/og-natal.jpg') return serveFile(res, 'og-natal.jpg', 'image/jpeg');
     // Páginas jurídicas (LGPD) — públicas
     if (req.method === 'GET' && (p === '/politica-de-privacidade' || p === '/politica.html'))
       return serveFile(res, 'politica.html', 'text/html');
