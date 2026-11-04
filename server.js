@@ -90,6 +90,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) return serveFile(res, 'index.html', 'text/html');
     if (req.method === 'GET' && p === '/app.js') return serveFile(res, 'app.js', 'application/javascript');
     if (req.method === 'GET' && p === '/logo.svg') return serveFile(res, 'logo.svg', 'image/svg+xml');
+    if (req.method === 'GET' && p === '/icone.svg') return serveFile(res, 'icone.svg', 'image/svg+xml');
     // Artes das campanhas. Cada arquivo precisa da sua rota: o servidor não
     // expõe a pasta inteira, serve só o que está declarado aqui.
     if (req.method === 'GET' && p === '/arte-campanha.jpg') return serveFile(res, 'arte-campanha.jpg', 'image/jpeg');
