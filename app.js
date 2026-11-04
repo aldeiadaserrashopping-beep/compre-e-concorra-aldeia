@@ -21,17 +21,10 @@ function irView(v) {
 }
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => irView(b.dataset.view));
 
-// -------- Banner de cookies (LGPD) --------
-// A escolha fica no navegador do visitante; nenhum dado é enviado ao servidor por aqui.
-function cookies(aceitou) {
-  try { localStorage.setItem('aldeia_cookies', aceitou ? 'aceitos' : 'necessarios'); } catch {}
-  $('cookie-bar').classList.add('hidden');
-}
-(function initCookies() {
-  let escolha = null;
-  try { escolha = localStorage.getItem('aldeia_cookies'); } catch {}
-  if (!escolha) $('cookie-bar').classList.remove('hidden');
-})();
+// A barra de cookies foi removida em 04/11: cobria o conteúdo no celular e
+// reaparecia a cada visita. A plataforma não usa cookies de análise nem de
+// publicidade, e armazenamento estritamente necessário dispensa banner de
+// consentimento. A informação segue na Política de Privacidade.
 
 // -------- Stepper --------
 function passo(n) {
@@ -107,7 +100,7 @@ async function carregarParticipante(nome) {
     box.className = 'brinde-box falta';
     box.innerHTML = `<div class="bb-ico">🎁</div>
       <h3>Faltam ${money(r.faltam)}</h3>
-      <p>Some mais ${money(r.faltam)} em compras nas lojas participantes para garantir
+      <p>Some mais ${money(r.faltam)} em compras no shopping para garantir
          seu ${escaparTexto(r.brinde)}.</p>`;
   }
 

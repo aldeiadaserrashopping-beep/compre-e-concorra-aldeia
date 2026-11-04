@@ -80,12 +80,13 @@ teste('Campanha de Natal sobe na modalidade compre e ganhe', async () => {
   ok(c.limitePorCpf === 1, 'limite por CPF deveria ser 1');
 });
 
-teste('Só as 12 lojas de varejo estão cadastradas', async () => {
+teste('Todas as operações do shopping estão cadastradas', async () => {
   const c = await store.getCampanha(null, CAMPANHA.id);
-  ok(c.lojasParticipantesCNPJ.length === 12, `vieram ${c.lojasParticipantesCNPJ.length} lojas`);
-  // Praça de alimentação e serviços não podem estar na lista (Cláusula 5).
-  for (const fora of ['59273034000100', '59302709000194', '13305908000155', '15743430000251']) {
-    ok(!c.lojasParticipantesCNPJ.includes(fora), `${fora} não deveria participar`);
+  ok(c.lojasParticipantesCNPJ.length === CAMPANHA.lojasParticipantesCNPJ.length,
+    `vieram ${c.lojasParticipantesCNPJ.length} lojas, esperado ${CAMPANHA.lojasParticipantesCNPJ.length}`);
+  // Desde 04/11 alimentação, gastronomia e serviços também participam.
+  for (const dentro of ['59273034000100', '59302709000194', '13305908000155', '15743430000251']) {
+    ok(c.lojasParticipantesCNPJ.includes(dentro), `${dentro} deveria participar`);
   }
 });
 
@@ -121,18 +122,23 @@ teste('Acima de R$ 300 continua sendo 1 brinde só (Cláusula 8)', async () => {
   ok(rows[0].c === 1, `R$ 900 gerou ${rows[0].c} direitos; deveria gerar 1`);
 });
 
-teste('Nota de praça de alimentação é recusada', async () => {
-  const p = await novoParticipante('Cliente Comprou No Spoleto');
-  await esperaErro(() => svc.enviarNota(p.id, {
-    valorTotal: 500, cnpjEmitente: '59273034000100',  // Ask Spoleto
-    dataCompra: '2026-12-10', fotoBase64: FOTO,
-  }, '127.0.0.1', 'teste'), 'E-NOTA-04');
+teste('Nota de praça de alimentação agora é aceita', async () => {
+  const p = await novoParticipante('Cliente Almocou No Spoleto');
+  const r = await notaAprovada(p.id, 300.00, '59273034000100');  // Ask Spoleto
+  ok(r.direito && r.direito.status === 'QUALIFICADO',
+    'almoço de R$ 300 deveria qualificar desde a mudança de 04/11');
 });
 
-teste('Nota de academia (serviço) é recusada', async () => {
+teste('Nota de academia (serviço) agora é aceita', async () => {
   const p = await novoParticipante('Cliente Pagou A Academia');
+  const r = await notaAprovada(p.id, 300.00, '13305908000155');  // Smart Fit
+  ok(r.direito && r.direito.status === 'QUALIFICADO', 'serviço deveria qualificar');
+});
+
+teste('Nota de loja fora do shopping continua recusada', async () => {
+  const p = await novoParticipante('Cliente Comprou Na Rua');
   await esperaErro(() => svc.enviarNota(p.id, {
-    valorTotal: 500, cnpjEmitente: '13305908000155',  // Smart Fit
+    valorTotal: 500, cnpjEmitente: '00000000000191',  // CNPJ qualquer, fora da lista
     dataCompra: '2026-12-10', fotoBase64: FOTO,
   }, '127.0.0.1', 'teste'), 'E-NOTA-04');
 });

@@ -56,8 +56,15 @@ module.exports = {
   seriesConfig: { serieAtual: 1, proximoNumero: 0, tamanhoSerie: 100000, digitos: 5 },
 
   /**
-   * Operações participantes — SOMENTE VAREJO (Cláusula 5).
-   * Ficam de fora alimentação, gastronomia e serviços.
+   * Operações participantes — TODAS as operações do shopping (Cláusula 5,
+   * alterada em 04/11: varejo, alimentação, gastronomia e serviços).
+   *
+   * A lista continua existindo e continua sendo obrigatória: sem ela, uma nota
+   * de qualquer comércio da cidade passaria. O que mudou é que ela precisa
+   * conter TODAS as operações do shopping, não só as de varejo.
+   *
+   * PENDENTE: faltam os CNPJs das operações de alimentação e serviços. Até que
+   * entrem aqui, notas dessas lojas serão recusadas por E-NOTA-04.
    *
    * Atenção: o CNPJ que importa é o IMPRESSO NO CUPOM, que nem sempre é o do
    * cadastro da loja. Foi o caso do Boticário na campanha anterior (cadastro
@@ -77,6 +84,16 @@ module.exports = {
     '26217704000104', // ÓTICAS DINIZ — VLE Comercio de Otica Ltda
     '59041432000193', // ÓTICAS DINIZ — segundo CNPJ
     '46727672000102', // ÓTICAS MAIA — Oticas M.Maia Ltda
+
+    // Alimentação, gastronomia e serviços — passaram a participar em 04/11.
+    '59273034000100', // ASK SPOLETO — Ask Serra Foods Ltda
+    '59302709000194', // GIRAFFAS — GFF Serra Foods Ltda
+    '59272743000163', // HMP — HMP Serra Foods Ltda
+    '34084985000100', // MAHAI — Restaurante Mahai ES Ltda
+    '39829064000135', // HAVE FUN — Rick Comercio e Locacao Ltda
+    '13305908000155', // SMART FIT — Trindade Serviços Operacionais Ltda
+    '57902761000156', // CLÍNICA DERMAVIVA
+    '15743430000251', // OFTALMOPLUS — Centro de Cuidados Oftalmologicos e Especialidades Ltda
   ],
 
   /**
