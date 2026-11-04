@@ -102,13 +102,49 @@ const server = http.createServer(async (req, res) => {
     const ADMIN_PATH = process.env.ADMIN_PATH || '/gestao-8k42vx';
     if (req.method === 'GET' && p === ADMIN_PATH) return serveFile(res, 'admin.html', 'text/html');
     if (req.method === 'GET' && p === ADMIN_PATH + '.js') return serveFile(res, 'admin.js', 'application/javascript');
+    // Terminal do balcão de retirada — endereço próprio, para a equipe deixar
+    // aberto no tablet durante o expediente sem expor o painel de gestão.
+    const BALCAO_PATH = process.env.BALCAO_PATH || '/retirada-n7p2';
+    if (req.method === 'GET' && p === BALCAO_PATH) return serveFile(res, 'balcao.html', 'text/html');
+    if (req.method === 'GET' && p === BALCAO_PATH + '.js') return serveFile(res, 'balcao.js', 'application/javascript');
 
     // -------- API pública --------
     if (req.method === 'GET' && p === '/api/v1/campanha') {
       const c = await store.getCampanha(null, CAMPANHA.id);
-      return send(res, 200, { id: c.id, nome: c.nome, valorUnidade: c.valorUnidade, qtdPremios: c.qtdPremios,
-        dataInicio: c.dataInicio, dataFim: c.dataFim, autorizada: !!c.numCertificadoSPA,
-        certificadoSPA: c.numCertificadoSPA, status: c.status });
+      const base = { id: c.id, nome: c.nome, modalidade: c.modalidade,
+        dataInicio: c.dataInicio, dataFim: c.dataFim, status: c.status };
+      if (c.modalidade === 'COMPRE_GANHE') {
+        return send(res, 200, { ...base,
+          valorMinimo: core.fromCents(c.valorMinimoCents),
+          brinde: c.brindeDescricao,
+          dataFimRetirada: c.dataFimRetirada,
+          limitePorCpf: c.limitePorCpf,
+          retirada: CAMPANHA.retirada || null,
+          estoque: await store.contarBrindes(c.id),
+        });
+      }
+      return send(res, 200, { ...base, valorUnidade: c.valorUnidade, qtdPremios: c.qtdPremios,
+        autorizada: !!c.numCertificadoSPA, certificadoSPA: c.numCertificadoSPA });
+    }
+
+    // Estoque ao vivo: é o que sustenta a cláusula de "não constitui reserva".
+    // O cliente consulta ANTES de comprar, em vez de descobrir no balcão.
+    if (req.method === 'GET' && p === '/api/v1/estoque') {
+      return send(res, 200, await store.contarBrindes(CAMPANHA.id));
+    }
+
+    // Relação pública das operações participantes (Cláusula 5 revisada).
+    if (req.method === 'GET' && p === '/api/v1/lojas') {
+      const c = await store.getCampanha(null, CAMPANHA.id);
+      const vistas = new Set();
+      const lojas = [];
+      for (const l of c.lojas) {
+        const nome = l.nome || l.razaoSocial || l.cnpj;
+        if (vistas.has(nome)) continue;   // duas filiais, um nome só para o público
+        vistas.add(nome);
+        lojas.push({ nome, razaoSocial: l.razaoSocial });
+      }
+      return send(res, 200, { total: lojas.length, lojas });
     }
 
     if (req.method === 'POST' && p === '/api/v1/participantes') {
@@ -138,11 +174,40 @@ const server = http.createServer(async (req, res) => {
       const id = p.split('/')[4];
       const part = await store.getParticipante(null, id);
       if (!part) throw pub('E-404', 'Participante não encontrado.');
-      const notas = await store.notasDoParticipante(null, id);
+      const c = await store.getCampanha(null, CAMPANHA.id);
+
+      // Só as notas DESTA campanha: quem participou das bicicletas não pode
+      // ver aquele acumulado contando para o Natal.
+      const notas = await store.notasDoParticipante(null, id, null, c.id);
+      const notasPublicas = notas.map(n => ({ ...n,
+        valorTotal: core.fromCents(n.valorTotalCents),
+        valorElegivel: core.fromCents(n.valorElegivelCents) }));
+
+      if (c.modalidade === 'COMPRE_GANHE') {
+        const V = notas.filter(n => n.status === 'APROVADA')
+          .reduce((s, n) => s + n.valorElegivelCents, 0);
+        const direito = await store.getDireito(null, c.id, id);
+        return send(res, 200, {
+          modalidade: 'COMPRE_GANHE',
+          participante: { id: part.id, nome: part.nome, cpf: svc.mascararCpf(part.cpf) },
+          valorElegivel: core.fromCents(V),
+          minimo: core.fromCents(c.valorMinimoCents),
+          faltam: core.fromCents(Math.max(0, c.valorMinimoCents - V)),
+          progresso: Math.min(100, Math.round((V / c.valorMinimoCents) * 100)),
+          direito: svc.publicoDireito(direito, c),
+          brinde: c.brindeDescricao,
+          retirada: CAMPANHA.retirada || null,
+          dataFimRetirada: c.dataFimRetirada,
+          estoque: await store.contarBrindes(c.id),
+          notas: notasPublicas,
+        });
+      }
+
       const nums = await store.numerosDoParticipante(null, id, 'ATIVO');
       return send(res, 200, {
+        modalidade: 'SORTEIO',
         participante: svc.publicoParticipante(part),
-        notas: notas.map(n => ({ ...n, valorTotal: core.fromCents(n.valorTotalCents) })),
+        notas: notasPublicas,
         numeros: nums.map(n => `${n.serie}-${n.numero}`),
       });
     }
@@ -163,22 +228,106 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { token: novaSessao(u.email, u.perfil), nome: u.nome, perfil: u.perfil });
     }
 
+    // -------- API do balcão de retirada (protegida) --------
+    // Perfil BALCAO só enxerga estas rotas: consultar um CPF e registrar a
+    // entrega. Não modera notas, não exporta lista, não acessa a auditoria —
+    // é um terminal de atendimento, operado no piso durante o expediente.
+    if (p.startsWith('/api/v1/balcao/')) {
+      const s = auth(req, url);
+      if (!s) return send(res, 401, { erro: 'E-AUTH-02', mensagem: 'Não autenticado.' });
+      if (!['ADMIN', 'BALCAO'].includes(s.perfil))
+        return send(res, 403, { erro: 'E-AUTH-05', mensagem: 'Perfil sem acesso ao balcão.' });
+
+      if (req.method === 'POST' && p === '/api/v1/balcao/consultar') {
+        const { cpf } = await body(req);
+        return send(res, 200, await svc.consultarCpf(cpf));
+      }
+      if (req.method === 'POST' && p === '/api/v1/balcao/entregar') {
+        const d = await body(req);
+        return send(res, 200, await svc.entregarBrinde({
+          direitoId: d.direitoId, atendente: s.usuario,
+          documentoConferido: d.documentoConferido, observacao: d.observacao,
+        }, ip));
+      }
+      if (req.method === 'GET' && p === '/api/v1/balcao/estoque') {
+        return send(res, 200, await store.contarBrindes(CAMPANHA.id));
+      }
+      if (req.method === 'GET' && p === '/api/v1/balcao/fila') {
+        const lista = await store.listarDireitos(CAMPANHA.id, 'QUALIFICADO');
+        return send(res, 200, lista.map(d => ({
+          id: d.id, nome: d.nome, cpf: svc.mascararCpf(d.cpf),
+          valorApurado: core.fromCents(d.valorApuradoCents), qualificadoEm: d.qualificadoEm,
+        })));
+      }
+      // Foto da nota, para a conferência no balcão.
+      if (req.method === 'GET' && p.match(/^\/api\/v1\/balcao\/notas\/[^/]+\/foto$/)) {
+        const f = await store.getFoto(p.split('/')[5]);
+        if (!f) return send(res, 404, { erro: 'E-404', mensagem: 'Foto não encontrada.' });
+        res.writeHead(200, { 'Content-Type': f.mime, 'Cache-Control': 'private, max-age=300' });
+        return res.end(f.bytes);
+      }
+      return send(res, 404, { erro: 'E-404', mensagem: 'Rota não encontrada.' });
+    }
+
     // -------- API admin (protegida) --------
     if (p.startsWith('/api/v1/admin/')) {
       const s = auth(req, url);
       if (!s) return send(res, 401, { erro: 'E-AUTH-02', mensagem: 'Não autenticado.' });
+      if (s.perfil === 'BALCAO')
+        return send(res, 403, { erro: 'E-AUTH-05', mensagem: 'Perfil de balcão não acessa a gestão.' });
       const usuario = s.usuario;
 
-      if (req.method === 'GET' && p === '/api/v1/admin/dashboard') {
-        const notas = await store.listarNotas(null);
-        const campanha = await store.getCampanha(null, CAMPANHA.id);
-        const porStatus = notas.reduce((a, n) => (a[n.status] = (a[n.status] || 0) + 1, a), {});
+      if (req.method === 'GET' && p === '/api/v1/admin/brindes') {
+        const status = url.searchParams.get('status') || null;
+        const lista = await store.listarDireitos(CAMPANHA.id, status);
         return send(res, 200, {
-          participantes: (await store.listarParticipantes(null)).length,
+          estoque: await store.contarBrindes(CAMPANHA.id),
+          direitos: lista.map(d => ({
+            id: d.id, nome: d.nome, cpf: svc.mascararCpf(d.cpf),
+            telefone: d.telefone, email: d.email, status: d.status,
+            valorApurado: core.fromCents(d.valorApuradoCents),
+            qualificadoEm: d.qualificadoEm, retiradoEm: d.retiradoEm,
+            atendente: d.atendente, observacao: d.observacao,
+          })),
+        });
+      }
+
+      // Relatório de entregas para a prestação de contas da campanha de Natal.
+      if (req.method === 'GET' && p === '/api/v1/admin/export/brindes.csv') {
+        const lista = await store.listarDireitos(CAMPANHA.id, null);
+        const linhas = ['cpf;nome;telefone;email;status;valor_apurado;qualificado_em;retirado_em;atendente;documento_conferido'];
+        for (const d of lista) {
+          linhas.push([
+            String(d.cpf || '').replace(/\D/g, ''), d.nome, d.telefone || '', d.email || '',
+            d.status, core.fromCents(d.valorApuradoCents),
+            dataHoraSCPC(d.qualificadoEm), d.retiradoEm ? dataHoraSCPC(d.retiradoEm) : '',
+            d.atendente || '', d.documentoConferido || '',
+          ].map(v => String(v).replace(/;/g, ',')).join(';'));
+        }
+        res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename=brindes_natal_2026.csv' });
+        return res.end(linhas.join('\r\n'));
+      }
+
+      if (req.method === 'GET' && p === '/api/v1/admin/dashboard') {
+        const campanha = await store.getCampanha(null, CAMPANHA.id);
+        const todas = await store.listarNotas(null);
+        const notas = todas.filter(n => n.campanhaId === campanha.id);
+        const porStatus = notas.reduce((a, n) => (a[n.status] = (a[n.status] || 0) + 1, a), {});
+        const comum = {
+          modalidade: campanha.modalidade,
+          campanha: campanha.nome,
           notas: notas.length, notasPorStatus: porStatus,
+          valorValidado: core.fromCents(notas.filter(n => n.status === 'APROVADA').reduce((t, n) => t + n.valorElegivelCents, 0)),
+          participantes: (await store.listarParticipantes(null)).length,
+        };
+        if (campanha.modalidade === 'COMPRE_GANHE') {
+          const e = await store.contarBrindes(campanha.id);
+          return send(res, 200, { ...comum, estoque: e, brinde: campanha.brindeDescricao,
+            valorMinimo: core.fromCents(campanha.valorMinimoCents) });
+        }
+        return send(res, 200, { ...comum,
           numerosAtivos: await store.contarNumeros(null, 'ATIVO'),
           numerosInutilizados: await store.contarNumeros(null, 'INUTILIZADO'),
-          valorValidado: core.fromCents(notas.filter(n => n.status === 'APROVADA').reduce((t, n) => t + n.valorElegivelCents, 0)),
           autorizadaSPA: !!campanha.numCertificadoSPA,
         });
       }
@@ -332,9 +481,17 @@ async function subir() {
     console.log('  ╚══════════════════════════════════════════════════════╝\n');
     console.log(`  Portal:   http://localhost:${PORT}`);
     console.log(`  Painel:   http://localhost:${PORT}${process.env.ADMIN_PATH || '/gestao-8k42vx'}`);
+    console.log(`  Balcão:   http://localhost:${PORT}${process.env.BALCAO_PATH || '/retirada-n7p2'}`);
     console.log(`  Banco:    conectado`);
-    console.log(`  Campanha: ${CAMPANHA.dataInicio} a ${CAMPANHA.dataFim}`);
-    console.log(`  SPA/MF:   ${CAMPANHA.numCertificadoSPA || 'certificado ainda não informado (modo pré-autorização)'}\n`);
+    console.log(`  Campanha: ${CAMPANHA.nome} (${CAMPANHA.modalidade || 'SORTEIO'})`);
+    console.log(`  Período:  ${CAMPANHA.dataInicio} a ${CAMPANHA.dataFim}`);
+    if (CAMPANHA.modalidade === 'COMPRE_GANHE') {
+      console.log(`  Brinde:   ${CAMPANHA.brindeDescricao} — ${CAMPANHA.estoqueTotal} unidades`);
+      console.log(`  Mínimo:   R$ ${(CAMPANHA.valorMinimoCents / 100).toFixed(2)} · retirada até ${CAMPANHA.dataFimRetirada}`);
+      console.log(`  SPA/MF:   dispensada (compre e ganhe, sem sorteio ou vale-brinde)\n`);
+    } else {
+      console.log(`  SPA/MF:   ${CAMPANHA.numCertificadoSPA || 'certificado ainda não informado (modo pré-autorização)'}\n`);
+    }
   });
 }
 

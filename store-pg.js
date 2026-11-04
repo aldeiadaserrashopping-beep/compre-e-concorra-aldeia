@@ -144,17 +144,28 @@ async function init(campanhaPadrao) {
     const c = campanhaPadrao;
     await pool.query(
       `INSERT INTO campanha (id,nome,valor_unidade,qtd_premios,qtd_ganhadores,data_inicio,data_fim,
-         data_apuracao,num_certificado_spa,acumula_saldo,serie_atual,proximo_numero,tamanho_serie,digitos,status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+         data_apuracao,num_certificado_spa,acumula_saldo,serie_atual,proximo_numero,tamanho_serie,digitos,status,
+         modalidade,valor_minimo_cents,brinde_descricao,estoque_total,limite_por_cpf,data_fim_retirada,versao_regulamento)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
       [c.id, c.nome, c.valorUnidade, c.qtdPremios, c.qtdGanhadores, c.dataInicio, c.dataFim,
        c.dataApuracao, c.numCertificadoSPA, c.acumulaSaldo, c.seriesConfig.serieAtual,
-       c.seriesConfig.proximoNumero, c.seriesConfig.tamanhoSerie, c.seriesConfig.digitos, c.status]);
+       c.seriesConfig.proximoNumero, c.seriesConfig.tamanhoSerie, c.seriesConfig.digitos, c.status,
+       c.modalidade || 'SORTEIO', c.valorMinimoCents || null, c.brindeDescricao || null,
+       c.estoqueTotal || null, c.limitePorCpf || 1, c.dataFimRetirada || null,
+       c.versaoRegulamento || 'v1.0']);
   }
   // Lojas: sincronizadas a cada boot (a relação oficial pode mudar até a véspera).
+  const nomes = campanhaPadrao.lojasNomes || {};
   for (const cnpj of campanhaPadrao.lojasParticipantesCNPJ) {
+    const info = nomes[cnpj] || {};
     await pool.query(
-      'INSERT INTO loja_participante (campanha_id,cnpj) VALUES ($1,$2) ON CONFLICT DO NOTHING',
-      [campanhaPadrao.id, cnpj]);
+      `INSERT INTO loja_participante (campanha_id,cnpj,nome,razao_social) VALUES ($1,$2,$3,$4)
+       ON CONFLICT DO NOTHING`,
+      [campanhaPadrao.id, cnpj, info.nome || null, info.razao || null]);
+    await pool.query(
+      `UPDATE loja_participante SET nome = COALESCE($3,nome), razao_social = COALESCE($4,razao_social)
+       WHERE campanha_id = $1 AND cnpj = $2`,
+      [campanhaPadrao.id, cnpj, info.nome || null, info.razao || null]);
   }
 
   const u = await pool.query('SELECT id FROM usuario LIMIT 1');
@@ -174,10 +185,19 @@ async function getCampanha(cli, id, paraAtualizar) {
     `SELECT * FROM campanha WHERE id = $1 ${paraAtualizar ? 'FOR UPDATE' : ''}`, [id]);
   if (!rows.length) return null;
   const r = rows[0];
-  const lojas = await ex(cli).query('SELECT cnpj FROM loja_participante WHERE campanha_id = $1', [id]);
+  const lojas = await ex(cli).query(
+    'SELECT cnpj, nome, razao_social FROM loja_participante WHERE campanha_id = $1 ORDER BY nome NULLS LAST, cnpj', [id]);
   const deny = await ex(cli).query('SELECT cpf_hash FROM denylist_cpf WHERE campanha_id = $1', [id]);
   return {
     id: r.id, nome: r.nome, valorUnidade: r.valor_unidade,
+    modalidade: r.modalidade || 'SORTEIO',
+    valorMinimoCents: r.valor_minimo_cents,
+    brindeDescricao: r.brinde_descricao,
+    estoqueTotal: r.estoque_total,
+    limitePorCpf: r.limite_por_cpf || 1,
+    dataFimRetirada: r.data_fim_retirada,
+    versaoRegulamento: r.versao_regulamento || 'v1.0',
+    lojas: lojas.rows.map(x => ({ cnpj: x.cnpj, nome: x.nome, razaoSocial: x.razao_social })),
     qtdPremios: r.qtd_premios, qtdGanhadores: r.qtd_ganhadores,
     dataInicio: r.data_inicio, dataFim: r.data_fim, dataApuracao: r.data_apuracao,
     numCertificadoSPA: r.num_certificado_spa, acumulaSaldo: r.acumula_saldo,
@@ -262,11 +282,19 @@ async function listarNotas(cli) {
   const { rows } = await ex(cli).query('SELECT * FROM nota_fiscal ORDER BY criado_em DESC');
   return rows.map(mapNota);
 }
-async function notasDoParticipante(cli, participanteId, status) {
+/**
+ * Notas de um participante. `campanhaId` é opcional por compatibilidade, mas no
+ * compre e ganhe é obrigatório na prática: sem ele, as notas da campanha das
+ * bicicletas entrariam na soma do Natal e o cliente ganharia o brinde sem ter
+ * comprado em dezembro.
+ */
+async function notasDoParticipante(cli, participanteId, status, campanhaId) {
+  const cond = ['participante_id = $1'];
+  const params = [participanteId];
+  if (status) { params.push(status); cond.push(`status = $${params.length}`); }
+  if (campanhaId) { params.push(campanhaId); cond.push(`campanha_id = $${params.length}`); }
   const { rows } = await ex(cli).query(
-    `SELECT * FROM nota_fiscal WHERE participante_id = $1 ${status ? 'AND status = $2' : ''}
-     ORDER BY criado_em ASC`,
-    status ? [participanteId, status] : [participanteId]);
+    `SELECT * FROM nota_fiscal WHERE ${cond.join(' AND ')} ORDER BY criado_em ASC`, params);
   return rows.map(mapNota);
 }
 async function criarNota(cli, n) {
@@ -491,6 +519,132 @@ async function criarGanhador(cli, sorteioId, g) {
      g.participanteId || null, g.tipo || 'TITULAR', g.status, g.motivo || null]);
 }
 
+// ============================ COMPRE E GANHE ============================
+
+// ---------- participação (acumulado por campanha) ----------
+async function getParticipacao(cli, participanteId, campanhaId) {
+  const { rows } = await ex(cli).query(
+    'SELECT * FROM participacao WHERE participante_id = $1 AND campanha_id = $2',
+    [participanteId, campanhaId]);
+  const r = rows[0];
+  return r ? {
+    participanteId: r.participante_id, campanhaId: r.campanha_id,
+    valorElegivelCents: r.valor_elegivel_cents,
+    aceiteRegulamento: r.aceite_regulamento, aceitoEm: r.aceito_em,
+  } : null;
+}
+
+async function salvarParticipacao(cli, participanteId, campanhaId, valorCents, aceite) {
+  await ex(cli).query(
+    `INSERT INTO participacao (participante_id,campanha_id,valor_elegivel_cents,aceite_regulamento,aceito_em)
+     VALUES ($1,$2,$3,$4, CASE WHEN $4::text IS NULL THEN NULL ELSE now() END)
+     ON CONFLICT (participante_id,campanha_id) DO UPDATE
+       SET valor_elegivel_cents = EXCLUDED.valor_elegivel_cents,
+           aceite_regulamento   = COALESCE(participacao.aceite_regulamento, EXCLUDED.aceite_regulamento),
+           aceito_em            = COALESCE(participacao.aceito_em, EXCLUDED.aceito_em),
+           atualizado_em        = now()`,
+    [participanteId, campanhaId, valorCents, aceite || null]);
+}
+
+// ---------- direito ao brinde ----------
+function mapDireito(r) {
+  if (!r) return null;
+  return {
+    id: r.id, campanhaId: r.campanha_id, participanteId: r.participante_id,
+    status: r.status, valorApuradoCents: r.valor_apurado_cents,
+    qualificadoEm: r.qualificado_em, retiradoEm: r.retirado_em,
+    atendente: r.atendente, documentoConferido: r.documento_conferido,
+    observacao: r.observacao,
+  };
+}
+
+async function getDireito(cli, campanhaId, participanteId) {
+  const { rows } = await ex(cli).query(
+    'SELECT * FROM brinde_direito WHERE campanha_id = $1 AND participante_id = $2',
+    [campanhaId, participanteId]);
+  return mapDireito(rows[0]);
+}
+
+async function criarDireito(cli, { campanhaId, participanteId, valorApuradoCents }) {
+  const id = novoId('BRD');
+  // ON CONFLICT DO NOTHING + releitura: se duas requisições simultâneas tentarem
+  // qualificar o mesmo CPF, o UNIQUE derruba a segunda e nós devolvemos a que ficou.
+  const { rows } = await ex(cli).query(
+    `INSERT INTO brinde_direito (id,campanha_id,participante_id,status,valor_apurado_cents)
+     VALUES ($1,$2,$3,'QUALIFICADO',$4)
+     ON CONFLICT (campanha_id,participante_id) DO NOTHING
+     RETURNING *`,
+    [id, campanhaId, participanteId, valorApuradoCents]);
+  if (!rows.length) return getDireito(cli, campanhaId, participanteId);
+  await ex(cli).query(
+    `INSERT INTO brinde_historico (direito_id,status_anterior,status_novo,motivo,usuario)
+     VALUES ($1,NULL,'QUALIFICADO',$2,'sistema')`,
+    [id, `Atingiu o valor mínimo da campanha (R$ ${(valorApuradoCents / 100).toFixed(2)})`]);
+  return mapDireito(rows[0]);
+}
+
+async function mudarStatusDireito(cli, direitoId, { statusAnterior, status, motivo, usuario, ip, campos }) {
+  const sets = ['status = $2'];
+  const params = [direitoId, status];
+  for (const [col, val] of Object.entries(campos || {})) {
+    params.push(val);
+    sets.push(`${col} = $${params.length}`);
+  }
+  await ex(cli).query(`UPDATE brinde_direito SET ${sets.join(', ')} WHERE id = $1`, params);
+  await ex(cli).query(
+    `INSERT INTO brinde_historico (direito_id,status_anterior,status_novo,motivo,usuario,ip)
+     VALUES ($1,$2,$3,$4,$5,$6)`,
+    [direitoId, statusAnterior || null, status, motivo || null, usuario || 'sistema', ip || null]);
+}
+
+/**
+ * Conta brindes já entregues e trava a campanha para a transação.
+ *
+ * O FOR UPDATE na linha da campanha é o que impede a entrega do 301º brinde:
+ * duas atendentes clicando "entregar" no mesmo instante seriam serializadas,
+ * e a segunda enxerga o estoque já decrementado pela primeira. Contar sem
+ * travar deixaria as duas lerem 299 e entregarem as duas.
+ */
+async function reservarEstoque(cli, campanhaId) {
+  const { rows: c } = await cli.query(
+    'SELECT estoque_total FROM campanha WHERE id = $1 FOR UPDATE', [campanhaId]);
+  if (!c.length) throw new Error('Campanha não encontrada.');
+  const { rows: n } = await cli.query(
+    "SELECT count(*)::int AS entregues FROM brinde_direito WHERE campanha_id = $1 AND status = 'RETIRADO'",
+    [campanhaId]);
+  return { estoqueTotal: c[0].estoque_total, entregues: n[0].entregues };
+}
+
+async function contarBrindes(campanhaId) {
+  const { rows } = await pool.query(
+    `SELECT
+       (SELECT estoque_total FROM campanha WHERE id = $1)                                             AS total,
+       count(*) FILTER (WHERE status = 'RETIRADO')::int                                               AS retirados,
+       count(*) FILTER (WHERE status = 'QUALIFICADO')::int                                            AS aguardando
+     FROM brinde_direito WHERE campanha_id = $1`, [campanhaId]);
+  const r = rows[0] || {};
+  const total = r.total || 0;
+  const retirados = r.retirados || 0;
+  return {
+    total, retirados, aguardando: r.aguardando || 0,
+    disponiveis: Math.max(0, total - retirados),
+  };
+}
+
+async function listarDireitos(campanhaId, status) {
+  const params = [campanhaId];
+  let cond = 'b.campanha_id = $1';
+  if (status) { params.push(status); cond += ` AND b.status = $${params.length}`; }
+  const { rows } = await pool.query(
+    `SELECT b.*, p.nome, p.cpf_enc, p.telefone, p.email
+     FROM brinde_direito b JOIN participante p ON p.id = b.participante_id
+     WHERE ${cond} ORDER BY b.qualificado_em ASC`, params);
+  return rows.map(r => ({
+    ...mapDireito(r), nome: r.nome, cpf: decifra(r.cpf_enc),
+    telefone: r.telefone, email: r.email,
+  }));
+}
+
 // ---------- usuário admin ----------
 async function getUsuarioPorEmail(cli, email) {
   const { rows } = await ex(cli).query(
@@ -525,6 +679,8 @@ module.exports = {
   salvarFoto, getFoto,
   numerosDoParticipante, numerosAtivos, contarNumeros, emitirNumeros, inutilizarNumeros,
   criarSorteio, criarGanhador,
+  getParticipacao, salvarParticipacao,
+  getDireito, criarDireito, mudarStatusDireito, reservarEstoque, contarBrindes, listarDireitos,
   getUsuarioPorEmail, listaSCPC,
   auditar, verificarAuditoria, listarAuditoria, verificarNumeros,
   cifra, decifra, hashSenha, conferirSenha,

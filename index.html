@@ -3,15 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Compre e Concorra · Shopping Aldeia da Serra</title>
+<title>Natal Luz · Compre e Ganhe · Shopping Aldeia da Serra</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --verde:#2f3327; --musgo:#535949; --dourado:#bda275; --dourado-esc:#9c8355;
-    --areia:#d6c4a8; --terracota:#995531; --cinza:#708286;
-    --creme:#f7f4ee; --branco:#fffdf9; --linha:#e7e0d3; --txt:#2b2f26; --suave:#6f6a5e;
+    /* Identidade Natal Luz 2026 — cores extraídas da arte do outdoor:
+       vinho da cortina, verde pinho do chão e madeira clara dos enfeites. */
+    --vinho:#4d131a; --vinho-esc:#2c1014;
+    --pinho:#1d3424; --pinho-esc:#121d16;
+    --madeira:#b88f71; --madeira-esc:#845b42;
+
+    /* Nomes usados nas regras abaixo, remapeados para a paleta do Natal.
+       Mantidos para não reescrever todas as regras a cada troca de campanha. */
+    --verde:var(--vinho); --musgo:#6b544e; --dourado:var(--madeira);
+    --dourado-esc:var(--madeira-esc); --areia:#f0e4d6; --terracota:#8a2630;
+    --cinza:#7a6f68;
+    --creme:#f8f4ed; --branco:#fffdfa; --linha:#e8ded1; --txt:#241f1d; --suave:#6e655c;
     --serif:'Cormorant Garamond',Georgia,serif; --sans:'Inter',-apple-system,Segoe UI,Roboto,sans-serif;
   }
   *{box-sizing:border-box}
@@ -30,8 +39,12 @@
   .goldline{height:3px;background:linear-gradient(90deg,var(--dourado),var(--terracota),var(--dourado))}
 
   /* Hero */
-  .hero{background:radial-gradient(120% 140% at 80% 0%,#3c4231 0%,var(--verde) 55%,#232719 100%);color:var(--creme);
-    position:relative;overflow:hidden}
+  /* Gradiente da cortina de veludo do outdoor: vinho aceso no alto à direita,
+     escurecendo para as bordas. */
+  .hero{background:radial-gradient(120% 140% at 78% 0%,#6b1a22 0%,var(--vinho) 45%,var(--vinho-esc) 100%);
+    color:var(--creme);position:relative;overflow:hidden}
+  .hero h1{letter-spacing:-.01em}
+  .hero .kicker{color:var(--madeira)}
   .hero-in{max-width:1080px;margin:0 auto;padding:64px 28px 72px;display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
   .hero .kicker{font-family:var(--sans);letter-spacing:.32em;text-transform:uppercase;font-size:12px;color:var(--dourado);margin-bottom:18px}
   .hero h1{font-family:var(--serif);font-weight:700;font-size:64px;line-height:1.02;margin:0 0 18px;color:#fff}
@@ -48,6 +61,31 @@
   .hero-arte{aspect-ratio:4/5;border-radius:16px;overflow:hidden;display:flex;
     box-shadow:0 20px 60px -30px rgba(0,0,0,.6)}
   .hero-arte img{width:100%;height:100%;object-fit:cover;display:block}
+  .arte-fallback{display:none;width:100%;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    background:linear-gradient(160deg,var(--pinho),var(--pinho-esc));border:1px solid rgba(184,143,113,.3);color:var(--areia)}
+  .arte-fallback .af-ico{font-size:54px;line-height:1}
+  .arte-fallback b{font-family:var(--serif);font-size:30px;color:var(--dourado);font-weight:600}
+  .arte-fallback small{letter-spacing:.24em;text-transform:uppercase;font-size:11px;opacity:.8}
+
+  /* Faixa de situação da campanha (antes de começar / encerrada / estoque baixo) */
+  .status-campanha{margin-top:26px}
+  /* inline-block, não flex: com flex cada trecho de texto e cada <b> virava um
+     item com espaçamento próprio, e a frase quebrava em pedaços desalinhados. */
+  .status-campanha .faixa{display:inline-block;padding:11px 20px;border-radius:26px;line-height:1.5;
+    font-size:13.5px;background:rgba(184,143,113,.16);border:1px solid rgba(184,143,113,.45);color:var(--areia)}
+  .status-campanha .faixa b{color:#fff;font-weight:600}
+  .status-campanha .faixa.alerta{background:rgba(153,85,49,.22);border-color:rgba(153,85,49,.6)}
+
+  /* Progresso rumo ao brinde */
+  .brinde-box{text-align:center;padding:22px 18px;border-radius:14px;margin-bottom:6px}
+  .brinde-box.falta{background:var(--creme);border:1px dashed var(--linha)}
+  .brinde-box.pronto{background:linear-gradient(135deg,var(--dourado),var(--dourado-esc));color:var(--verde)}
+  .brinde-box.retirado{background:#eef4ec;border:1px solid #d5e3d0;color:#3a5a34}
+  .brinde-box .bb-ico{font-size:40px;line-height:1;margin-bottom:6px}
+  .brinde-box h3{font-family:var(--serif);font-size:25px;margin:0 0 6px;font-weight:600}
+  .brinde-box p{margin:0;font-size:14.5px}
+  .lojas-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:6px}
+  .lojas-lista span{background:var(--creme);border:1px solid var(--linha);border-radius:9px;padding:10px 12px;font-size:14px}
 
   /* Layout */
   main{max-width:1080px;margin:0 auto;padding:44px 28px 80px}
@@ -128,16 +166,26 @@
     <div class="hero-in">
       <div>
         <div class="kicker">Shopping Aldeia da Serra apresenta</div>
-        <h1>Compre e <em>Concorra</em></h1>
-        <p class="lead">A cada R$ 500,00 em compras nas lojas participantes, você ganha um Número da Sorte para concorrer.</p>
+        <h1>Natal <em>Luz</em></h1>
+        <p class="lead">Acumule <b>R$ 300,00</b> em compras nas lojas de varejo participantes e
+          <b>ganhe na hora</b> um Panettone Trufado Mezzo Cacau Show de 580 g.</p>
         <div class="premio">
-          <div class="p-item"><span class="p-num">2</span><span class="p-label">Bicicletas<br>Elétricas</span></div>
+          <div class="p-item"><span class="p-num">1</span><span class="p-label">Panettone<br>Trufado Mezzo</span></div>
           <div class="p-div"></div>
-          <div class="p-item"><span class="p-num">2</span><span class="p-label">Ganhadores</span></div>
+          <div class="p-item"><span class="p-num" id="hero-estoque">300</span><span class="p-label">Unidades<br>disponíveis</span></div>
         </div>
+        <div id="hero-status" class="status-campanha"></div>
       </div>
       <div class="hero-arte" id="hero-arte">
-        <img src="/arte-campanha.jpg" alt="Campanha Compre e Concorra — Shopping Aldeia da Serra">
+        <!-- Enquanto a arte do Natal Luz não chega, o espaço mostra um painel
+             próprio em vez de uma imagem quebrada ou da arte da campanha anterior. -->
+        <img src="/arte-natal.jpg" alt="Natal Luz — Shopping Aldeia da Serra"
+             onerror="this.style.display='none';document.getElementById('arte-fallback').style.display='flex'">
+        <div id="arte-fallback" class="arte-fallback">
+          <span class="af-ico">🎄</span>
+          <b>Natal Luz</b>
+          <small>Compre e Ganhe</small>
+        </div>
       </div>
     </div>
   </div>
@@ -146,7 +194,24 @@
     <div class="steps" id="stepper">
       <div class="step on" data-s="1"><div class="n">1</div><small>Cadastro</small></div>
       <div class="step" data-s="2"><div class="n">2</div><small>Enviar notas</small></div>
-      <div class="step" data-s="3"><div class="n">3</div><small>Meus números</small></div>
+      <div class="step" data-s="3"><div class="n">3</div><small>Retirar o brinde</small></div>
+    </div>
+
+    <div class="card">
+      <h2>Como funciona</h2>
+      <p class="hint">Três passos, sem sorteio: quem atingir o valor ganha.</p>
+      <ol style="margin:0;padding-left:20px;font-size:15px;line-height:1.9">
+        <li>Compre <b>R$ 300,00</b> ou mais nas lojas de varejo participantes, em uma ou várias notas.</li>
+        <li>Cadastre as notas aqui, sempre com <b>o seu CPF na nota</b>.</li>
+        <li>Retire o panettone no <b id="como-local">ponto de retirada</b>, levando um documento com foto.</li>
+      </ol>
+      <p style="margin:18px 0 0;font-size:14px;color:var(--suave)">
+        Limite de 1 brinde por CPF. Compras acima de R$ 300,00 não geram brindes adicionais.
+        Válido enquanto durarem as 300 unidades — <a href="#" onclick="verLojas();return false">veja as lojas participantes</a>.
+      </p>
+      <div id="box-lojas" class="hidden" style="margin-top:16px">
+        <div class="lojas-lista" id="lista-lojas"></div>
+      </div>
     </div>
 
     <div class="card" id="card-cadastro">
@@ -160,7 +225,7 @@
       <div class="row"><div><label>Cidade</label><input id="c-cidade"></div>
         <div style="max-width:110px"><label>UF</label><input id="c-uf" maxlength="2" placeholder="SP"></div></div>
       <div class="chk"><input type="checkbox" id="c-reg"><span>Declaro que li e aceito o <a href="/regulamento" target="_blank">Regulamento</a> e a
-        <a href="/politica-de-privacidade" target="_blank">Política de Privacidade</a> da promoção "Compre e Concorra" do Shopping Aldeia da Serra.
+        <a href="/politica-de-privacidade" target="_blank">Política de Privacidade</a> da promoção "Natal Luz — Compre e Ganhe" do Shopping Aldeia da Serra.
         Declaro ser maior de 18 anos, que o CPF informado é o meu, e que os dados e comprovantes cadastrados são verdadeiros.
         <small class="help">(obrigatório)</small></span></div>
       <div class="chk"><input type="checkbox" id="c-priv"><span>Autorizo o tratamento dos meus dados pessoais para minha participação na promoção,
@@ -189,19 +254,24 @@
       <p class="section-sub" style="margin-bottom:22px">Olá, <b id="p-nome"></b> 👋</p>
 
       <div class="card">
-        <h2>Meu saldo</h2>
-        <div class="saldo">
+        <div id="brinde-box" class="brinde-box falta">
+          <div class="bb-ico">🎁</div>
+          <h3 id="bb-titulo">Você está a caminho do seu panettone</h3>
+          <p id="bb-texto">Envie suas notas para somar R$ 300,00.</p>
+        </div>
+        <div class="saldo" style="grid-template-columns:repeat(2,1fr);margin-top:18px">
           <div class="metric">Compras válidas<b id="m-valor">R$ 0,00</b></div>
-          <div class="metric gold">Números da Sorte<b id="m-num">0</b></div>
-          <div class="metric">Falta p/ próximo nº<b id="m-falta">R$ 500,00</b></div>
+          <div class="metric gold">Falta para o brinde<b id="m-falta">R$ 300,00</b></div>
         </div>
         <div class="barra"><i id="m-barra" style="width:0%"></i></div>
-        <small class="help">A cada R$ 500,00 você ganha 1 Número da Sorte. O valor que sobra fica acumulado para as próximas compras.</small>
+        <small class="help" id="m-ajuda">Suas notas somam até chegar em R$ 300,00. Podem ser de lojas diferentes,
+          desde que todas estejam no seu CPF.</small>
       </div>
 
       <div class="card">
         <h2>Enviar nota fiscal</h2>
-        <p class="hint"><b>Passo 1</b> — leia o QR Code impresso no cupom (preenche loja e data). <b>Passo 2</b> — anexe a foto da nota.</p>
+        <p class="hint"><b>Passo 1</b> — leia o QR Code impresso no cupom (preenche loja e data). <b>Passo 2</b> — anexe a foto da nota.
+          Lembre-se: <b>o seu CPF precisa estar na nota</b>.</p>
         <div class="row">
           <div><button class="btn ghost" type="button" onclick="abrirScanner()">📷 Escanear QR da nota</button>
             <video id="qr-video" class="hidden" muted playsinline></video></div>
@@ -223,7 +293,6 @@
         <div id="n-msg"></div>
       </div>
 
-      <div class="card"><h2>Meus Números da Sorte</h2><div id="p-numeros"></div></div>
       <div class="card"><h2>Minhas notas</h2><div id="p-notas"></div></div>
     </div>
   </main>
@@ -231,6 +300,7 @@
 
 <footer>
   <b>Aldeia Premia</b> · plataforma de campanhas do Shopping Aldeia da Serra<br>
+  Promoção realizada por R3L Empreendimentos Imobiliários Ltda. · CNPJ 30.455.678/0001-20<br>
   <a href="/politica-de-privacidade">Política de Privacidade</a> ·
   <a href="/regulamento">Regulamento</a> ·
   Encarregado de Dados (DPO): <a href="mailto:marketing@shoppingaldeiadaserra.com.br">marketing@shoppingaldeiadaserra.com.br</a>

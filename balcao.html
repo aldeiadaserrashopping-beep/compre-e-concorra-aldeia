@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Balcão de Retirada · Natal Luz</title>
+<style>
+  :root{
+    --verde:#0f5132; --verde-claro:#198754; --vermelho:#b02a37; --amarelo:#997404;
+    --cinza:#6c757d; --borda:#dee2e6; --fundo:#f6f7f5; --papel:#fff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--fundo);color:#212529;-webkit-text-size-adjust:100%}
+  header{background:var(--verde);color:#fff;padding:14px 20px;display:flex;align-items:center;
+         justify-content:space-between;gap:16px;flex-wrap:wrap}
+  header h1{margin:0;font-size:17px;font-weight:600;letter-spacing:.2px}
+  header .sub{font-size:12px;opacity:.85;margin-top:2px}
+  .estoque{background:rgba(255,255,255,.14);border-radius:10px;padding:8px 14px;text-align:center;min-width:120px}
+  .estoque b{display:block;font-size:22px;line-height:1.1}
+  .estoque span{font-size:11px;opacity:.9}
+  main{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+  .cartao{background:var(--papel);border:1px solid var(--borda);border-radius:12px;padding:20px;margin-bottom:16px}
+  label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#343a40}
+  input[type=text],input[type=password],input[type=email],textarea{
+    width:100%;padding:14px;font-size:17px;border:1px solid var(--borda);border-radius:8px;
+    font-family:inherit;background:#fff}
+  input:focus,textarea:focus{outline:2px solid var(--verde-claro);outline-offset:1px;border-color:transparent}
+  button{font-family:inherit;font-size:16px;font-weight:600;padding:14px 22px;border:0;border-radius:8px;
+         cursor:pointer;background:var(--verde);color:#fff;min-height:50px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button.sec{background:#e9ecef;color:#343a40}
+  button.entregar{background:var(--verde-claro);width:100%;font-size:18px;min-height:58px}
+  .linha{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .linha>div{flex:1;min-width:200px}
+  .aviso{padding:14px 16px;border-radius:8px;font-size:14px;margin:12px 0;line-height:1.5}
+  .aviso.erro{background:#f8d7da;color:#58151c;border:1px solid #f1aeb5}
+  .aviso.ok{background:#d1e7dd;color:#0a3622;border:1px solid #a3cfbb}
+  .aviso.atencao{background:#fff3cd;color:#664d03;border:1px solid #ffe69c}
+  .situacao{text-align:center;padding:24px 16px;border-radius:12px;margin-bottom:18px}
+  .situacao .icone{font-size:42px;line-height:1;margin-bottom:8px}
+  .situacao h2{margin:0 0 6px;font-size:22px}
+  .situacao p{margin:0;font-size:15px;opacity:.9}
+  .situacao.pode{background:#d1e7dd;color:#0a3622;border:2px solid var(--verde-claro)}
+  .situacao.nao{background:#f8d7da;color:#58151c;border:2px solid #e35d6a}
+  .situacao.ja{background:#cfe2ff;color:#052c65;border:2px solid #6ea8fe}
+  .dados{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:18px}
+  .dado{background:#f8f9fa;border-radius:8px;padding:12px 14px}
+  .dado span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--cinza);margin-bottom:3px}
+  .dado b{font-size:17px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--borda)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--cinza)}
+  .tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+  .tag.APROVADA{background:#d1e7dd;color:#0a3622}
+  .tag.EM_ANALISE{background:#fff3cd;color:#664d03}
+  .tag.REJEITADA,.tag.CANCELADA{background:#f8d7da;color:#58151c}
+  a.foto{color:var(--verde-claro);font-weight:600;text-decoration:none}
+  .rodape{text-align:center;font-size:12px;color:var(--cinza);margin-top:24px;line-height:1.6}
+  .oculto{display:none}
+  h3{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);margin:22px 0 10px}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Balcão de Retirada · Natal Luz</h1>
+    <div class="sub" id="sub">Shopping Aldeia da Serra</div>
+  </div>
+  <div class="estoque" id="boxEstoque" hidden>
+    <b id="estDisp">—</b>
+    <span>brindes disponíveis</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- LOGIN -->
+  <section id="telaLogin" class="cartao">
+    <h2 style="margin-top:0;font-size:19px">Entrar</h2>
+    <div id="erroLogin" class="aviso erro oculto"></div>
+    <div style="margin-bottom:14px">
+      <label for="email">E-mail</label>
+      <input id="email" type="email" autocomplete="username" inputmode="email">
+    </div>
+    <div style="margin-bottom:18px">
+      <label for="senha">Senha</label>
+      <input id="senha" type="password" autocomplete="current-password">
+    </div>
+    <button id="btnEntrar" style="width:100%">Entrar</button>
+  </section>
+
+  <!-- CONSULTA -->
+  <section id="telaBusca" class="cartao oculto">
+    <label for="cpf">CPF do cliente</label>
+    <div class="linha">
+      <div>
+        <input id="cpf" type="text" inputmode="numeric" placeholder="000.000.000-00" autocomplete="off">
+      </div>
+      <button id="btnBuscar">Consultar</button>
+      <button id="btnLimpar" class="sec">Limpar</button>
+    </div>
+    <div id="erroBusca" class="aviso erro oculto"></div>
+  </section>
+
+  <!-- RESULTADO -->
+  <section id="telaResultado" class="oculto">
+    <div id="situacao" class="situacao"></div>
+
+    <div class="cartao">
+      <div class="dados" id="dados"></div>
+
+      <div id="blocoEntrega" class="oculto">
+        <h3>Conferência presencial</h3>
+        <div class="aviso atencao">
+          Confira o documento oficial com foto e o CPF antes de entregar. A entrega
+          fica registrada em seu nome na trilha de auditoria.
+        </div>
+        <div style="margin-bottom:14px">
+          <label for="doc">Documento conferido</label>
+          <input id="doc" type="text" placeholder="Ex.: RG 1.234.567 SSP/ES ou CNH" autocomplete="off">
+        </div>
+        <div style="margin-bottom:16px">
+          <label for="obs">Observação (opcional)</label>
+          <input id="obs" type="text" placeholder="Algo que precise ficar registrado" autocomplete="off">
+        </div>
+        <button id="btnEntregar" class="entregar">Confirmar entrega do brinde</button>
+        <div id="erroEntrega" class="aviso erro oculto"></div>
+      </div>
+
+      <h3>Notas cadastradas nesta campanha</h3>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Loja</th><th>Data</th><th>Valor</th><th>Situação</th><th>Foto</th></tr></thead>
+          <tbody id="tbNotas"></tbody>
+        </table>
+      </div>
+      <p id="semNotas" class="oculto" style="color:var(--cinza);font-size:14px">Nenhuma nota cadastrada.</p>
+    </div>
+  </section>
+
+  <div class="rodape">
+    Promoção realizada por R3L Empreendimentos Imobiliários Ltda.<br>
+    Em caso de dúvida, consulte o regulamento ou fale com o marketing.
+  </div>
+</main>
+
+<script src="/retirada-n7p2.js"></script>
+</body>
+</html>

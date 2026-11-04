@@ -234,3 +234,72 @@ CREATE TABLE IF NOT EXISTS documento_gerado (
   hash        TEXT,
   gerado_em   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- =====================================================================
+-- COMPRE E GANHE (Natal 2026)
+--
+-- A campanha das bicicletas era SORTEIO: acumula valor, emite Números da
+-- Sorte, apura. O Natal é COMPRE_GANHE: acumula valor, atinge o mínimo,
+-- ganha o direito a um brinde, retira presencialmente. Não há sorte em
+-- nenhum momento — por isso dispensa autorização da SPA/MF.
+--
+-- As duas convivem: `modalidade` decide qual caminho o código segue, e a
+-- campanha anterior continua intacta e auditável.
+-- =====================================================================
+
+ALTER TABLE campanha ADD COLUMN IF NOT EXISTS modalidade        TEXT NOT NULL DEFAULT 'SORTEIO';
+ALTER TABLE campanha ADD COLUMN IF NOT EXISTS valor_minimo_cents BIGINT;
+ALTER TABLE campanha ADD COLUMN IF NOT EXISTS brinde_descricao   TEXT;
+ALTER TABLE campanha ADD COLUMN IF NOT EXISTS estoque_total      INT;
+ALTER TABLE campanha ADD COLUMN IF NOT EXISTS limite_por_cpf     INT DEFAULT 1;
+ALTER TABLE campanha ADD COLUMN IF NOT EXISTS data_fim_retirada  DATE;
+ALTER TABLE campanha ADD COLUMN IF NOT EXISTS versao_regulamento TEXT DEFAULT 'v1.0';
+
+-- Nome e razão social das lojas: sem isso, uma recusa por CNPJ só diz o
+-- número, e descobrir de que loja se trata vira investigação manual.
+ALTER TABLE loja_participante ADD COLUMN IF NOT EXISTS nome         TEXT;
+ALTER TABLE loja_participante ADD COLUMN IF NOT EXISTS razao_social TEXT;
+
+-- ------------------------------------------------------------ participação
+-- O acumulado precisa ser POR CAMPANHA. As colunas de total em `participante`
+-- guardam o resultado da campanha das bicicletas e ficam congeladas: um
+-- participante que volta no Natal começa do zero, sem herdar nada.
+CREATE TABLE IF NOT EXISTS participacao (
+  participante_id      TEXT NOT NULL REFERENCES participante(id) ON DELETE CASCADE,
+  campanha_id          TEXT NOT NULL REFERENCES campanha(id) ON DELETE CASCADE,
+  valor_elegivel_cents BIGINT NOT NULL DEFAULT 0,
+  aceite_regulamento   TEXT,
+  aceito_em            TIMESTAMPTZ,
+  atualizado_em        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (participante_id, campanha_id)
+);
+
+-- --------------------------------------------------------- direito ao brinde
+-- O UNIQUE (campanha_id, participante_id) é o que garante no BANCO o limite de
+-- 1 brinde por CPF da Cláusula 8. Uma checagem só no código cederia a duas
+-- requisições simultâneas; o índice não cede.
+CREATE TABLE IF NOT EXISTS brinde_direito (
+  id                  TEXT PRIMARY KEY,
+  campanha_id         TEXT NOT NULL REFERENCES campanha(id) ON DELETE CASCADE,
+  participante_id     TEXT NOT NULL REFERENCES participante(id) ON DELETE CASCADE,
+  status              TEXT NOT NULL,          -- QUALIFICADO | RETIRADO | REVOGADO
+  valor_apurado_cents BIGINT NOT NULL,
+  qualificado_em      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  retirado_em         TIMESTAMPTZ,
+  atendente           TEXT,
+  documento_conferido TEXT,
+  observacao          TEXT,
+  UNIQUE (campanha_id, participante_id)
+);
+CREATE INDEX IF NOT EXISTS idx_brinde_status ON brinde_direito(campanha_id, status);
+
+CREATE TABLE IF NOT EXISTS brinde_historico (
+  id             BIGSERIAL PRIMARY KEY,
+  direito_id     TEXT NOT NULL REFERENCES brinde_direito(id) ON DELETE CASCADE,
+  status_anterior TEXT,
+  status_novo    TEXT NOT NULL,
+  motivo         TEXT,
+  usuario        TEXT,
+  ip             TEXT,
+  data_hora      TIMESTAMPTZ NOT NULL DEFAULT now()
+);

@@ -153,9 +153,21 @@ const mudarStatusNota = (novoStatus, acao) => async (notaId, motivo, usuario, ip
       entidade: 'nota_fiscal', entidadeId: notaId, acao, usuario, ip,
       valorAnterior: { status: nota.status }, valorNovo: { status: novoStatus, motivo: motivo || null },
     });
-    // Recalcula na MESMA transação: nota e números nunca ficam fora de sincronia.
-    return recalcularNumeros(cli, nota.participanteId, usuario, ip, `${acao} da nota ${notaId}`);
+    // Recalcula na MESMA transação: nota e consequência nunca ficam fora de sincronia.
+    return recalcular(cli, nota.participanteId, usuario, ip, `${acao} da nota ${notaId}`);
   });
+
+/**
+ * Despacha para a regra da campanha ativa. No sorteio, a consequência de uma
+ * nota aprovada é emitir Números da Sorte; no compre e ganhe, é qualificar (ou
+ * desqualificar) o participante para o brinde.
+ */
+async function recalcular(cli, participanteId, usuario, ip, motivo) {
+  const campanha = await store.getCampanha(cli, CAMPANHA.id);
+  return campanha.modalidade === 'COMPRE_GANHE'
+    ? recalcularBrinde(cli, campanha, participanteId, usuario, ip, motivo)
+    : recalcularNumeros(cli, participanteId, usuario, ip, motivo);
+}
 
 const aprovarNota = (notaId, usuario, ip) => mudarStatusNota('APROVADA', 'APROVACAO')(notaId, null, usuario, ip);
 const rejeitarNota = mudarStatusNota('REJEITADA', 'REJEICAO');
@@ -197,6 +209,189 @@ async function recalcularNumeros(cli, participanteId, usuario, ip, motivo) {
 
   const atualizado = await store.getParticipante(cli, participanteId);
   return { participante: publicoParticipante(atualizado), emitidos, inutilizados, numerosDevidos };
+}
+
+// ---------- COMPRE E GANHE: qualificação para o brinde ----------
+/**
+ * Soma as notas APROVADAS do participante NESTA campanha e decide se ele tem
+ * direito ao brinde. Chamado sempre dentro de uma transação.
+ *
+ * Três situações:
+ *  - atingiu o mínimo e ainda não tinha direito  -> qualifica
+ *  - caiu abaixo do mínimo e ainda não retirou   -> revoga (uma nota foi recusada depois)
+ *  - já retirou o brinde                          -> NÃO mexe
+ *
+ * O último caso é deliberado: o panettone já saiu da prateleira e foi para a
+ * mão do cliente. Reverter o registro criaria uma divergência entre o sistema e
+ * o estoque físico. A revisão da nota fica na trilha de auditoria.
+ */
+async function recalcularBrinde(cli, campanha, participanteId, usuario, ip, motivo) {
+  const p = await store.getParticipante(cli, participanteId);
+  const aprovadas = await store.notasDoParticipante(cli, participanteId, 'APROVADA', campanha.id);
+  const V = aprovadas.reduce((s, n) => s + n.valorElegivelCents, 0);
+  await store.salvarParticipacao(cli, participanteId, campanha.id, V);
+
+  const minimo = campanha.valorMinimoCents;
+  const atingiu = V >= minimo;
+  let direito = await store.getDireito(cli, campanha.id, participanteId);
+  let acao = 'NENHUMA';
+
+  if (atingiu && !direito) {
+    direito = await store.criarDireito(cli, {
+      campanhaId: campanha.id, participanteId, valorApuradoCents: V,
+    });
+    acao = 'QUALIFICADO';
+  } else if (atingiu && direito && direito.status === 'REVOGADO') {
+    await store.mudarStatusDireito(cli, direito.id, {
+      statusAnterior: 'REVOGADO', status: 'QUALIFICADO', usuario, ip,
+      motivo: `Voltou a atingir o mínimo: ${motivo}`,
+      campos: { valor_apurado_cents: V },
+    });
+    direito = await store.getDireito(cli, campanha.id, participanteId);
+    acao = 'REQUALIFICADO';
+  } else if (!atingiu && direito && direito.status === 'QUALIFICADO') {
+    await store.mudarStatusDireito(cli, direito.id, {
+      statusAnterior: 'QUALIFICADO', status: 'REVOGADO', usuario, ip,
+      motivo: `Ficou abaixo do mínimo após ${motivo}`,
+      campos: { valor_apurado_cents: V },
+    });
+    direito = await store.getDireito(cli, campanha.id, participanteId);
+    acao = 'REVOGADO';
+  } else if (direito && direito.status === 'RETIRADO' && !atingiu) {
+    // Brinde já entregue e o valor caiu: não reverte, mas registra.
+    acao = 'ALERTA_POS_RETIRADA';
+  }
+
+  await store.auditar(cli, {
+    entidade: 'brinde_direito', entidadeId: direito ? direito.id : participanteId,
+    acao: 'RECALCULO', usuario, ip,
+    valorNovo: { motivo, valorElegivelCents: V, minimoCents: minimo, atingiu, resultado: acao },
+  });
+
+  return {
+    participante: { id: p.id, nome: p.nome, cpf: mascararCpf(p.cpf) },
+    valorElegivel: core.fromCents(V),
+    faltamCents: Math.max(0, minimo - V),
+    direito: publicoDireito(direito, campanha),
+    acao,
+  };
+}
+
+/**
+ * Registra a entrega presencial do brinde (Cláusula 9).
+ *
+ * Tudo numa transação só, com o estoque travado: conferir disponibilidade e
+ * marcar como retirado precisam ser indivisíveis, senão duas atendentes
+ * entregam o mesmo último brinde.
+ */
+async function entregarBrinde({ direitoId, atendente, documentoConferido, observacao }, ip) {
+  if (!atendente) throw err('E-BRD-05', 'Informe quem está realizando a entrega.');
+  if (!documentoConferido) throw err('E-BRD-06', 'Registre o documento com foto conferido.');
+
+  return store.tx(async (cli) => {
+    const campanha = await store.getCampanha(cli, CAMPANHA.id);
+    if (campanha.modalidade !== 'COMPRE_GANHE')
+      throw err('E-BRD-01', 'A campanha ativa não é de compre e ganhe.');
+
+    const { rows } = await cli.query('SELECT * FROM brinde_direito WHERE id = $1 FOR UPDATE', [direitoId]);
+    const d = rows[0];
+    if (!d) throw err('E-BRD-404', 'Direito ao brinde não encontrado.');
+    if (d.status === 'RETIRADO')
+      throw err('E-BRD-02', 'Este CPF já retirou o brinde desta campanha.');
+    if (d.status !== 'QUALIFICADO')
+      throw err('E-BRD-03', 'Este participante não está qualificado para retirar o brinde.');
+
+    const hoje = new Date().toISOString().slice(0, 10);
+    const limite = campanha.dataFimRetirada || campanha.dataFim;
+    if (limite && hoje > limite)
+      throw err('E-BRD-07', `O prazo de retirada encerrou em ${formatarData(limite)}.`);
+
+    const { estoqueTotal, entregues } = await store.reservarEstoque(cli, campanha.id);
+    if (estoqueTotal !== null && entregues >= estoqueTotal)
+      throw err('E-BRD-04', `Estoque esgotado: as ${estoqueTotal} unidades já foram entregues.`);
+
+    await store.mudarStatusDireito(cli, direitoId, {
+      statusAnterior: d.status, status: 'RETIRADO', usuario: atendente, ip,
+      motivo: 'Entrega presencial conferida no ponto de retirada',
+      campos: {
+        retirado_em: new Date(), atendente,
+        documento_conferido: documentoConferido,
+        observacao: observacao || null,
+      },
+    });
+    await store.auditar(cli, {
+      entidade: 'brinde_direito', entidadeId: direitoId, acao: 'ENTREGA',
+      usuario: atendente, ip,
+      valorAnterior: { status: d.status },
+      valorNovo: {
+        status: 'RETIRADO', documentoConferido, observacao: observacao || null,
+        brinde: campanha.brindeDescricao,
+        estoque: { total: estoqueTotal, entreguesAntes: entregues, entreguesDepois: entregues + 1 },
+      },
+    });
+
+    const atualizado = await store.getDireito(cli, campanha.id, d.participante_id);
+    const part = await store.getParticipante(cli, d.participante_id);
+    return {
+      direito: publicoDireito(atualizado, campanha),
+      participante: { nome: part.nome, cpf: mascararCpf(part.cpf) },
+      estoque: { total: estoqueTotal, retirados: entregues + 1, disponiveis: estoqueTotal - entregues - 1 },
+    };
+  });
+}
+
+/** Situação completa de um CPF, para a tela de balcão. */
+async function consultarCpf(cpfInformado) {
+  const cpf = String(cpfInformado || '').replace(/\D/g, '');
+  if (!core.cpfValido(cpf)) throw err('E-BRD-08', 'CPF inválido.');
+  const campanha = await store.getCampanha(null, CAMPANHA.id);
+  const p = await store.getParticipantePorCpfHash(null, core.cpfHash(cpf));
+  if (!p) throw err('E-BRD-09', 'Nenhum cadastro encontrado para este CPF.');
+
+  const notas = await store.notasDoParticipante(null, p.id, null, campanha.id);
+  const aprovadas = notas.filter(n => n.status === 'APROVADA');
+  const V = aprovadas.reduce((s, n) => s + n.valorElegivelCents, 0);
+  const direito = await store.getDireito(null, campanha.id, p.id);
+
+  return {
+    participante: {
+      id: p.id, nome: p.nome, cpf: mascararCpf(p.cpf),
+      telefone: p.telefone, email: p.email,
+    },
+    valorElegivel: core.fromCents(V),
+    minimo: core.fromCents(campanha.valorMinimoCents),
+    faltam: core.fromCents(Math.max(0, campanha.valorMinimoCents - V)),
+    notas: notas.map(n => ({
+      id: n.id, status: n.status, valor: core.fromCents(n.valorElegivelCents),
+      cnpjEmitente: n.cnpjEmitente, loja: nomeDaLoja(campanha, n.cnpjEmitente),
+      dataCompra: n.dataCompra, chaveNfe: n.chaveNfe,
+      motivoRejeicao: n.motivoRejeicao, temFoto: true,
+    })),
+    direito: publicoDireito(direito, campanha),
+    brinde: campanha.brindeDescricao,
+  };
+}
+
+function nomeDaLoja(campanha, cnpj) {
+  if (!cnpj) return null;
+  const l = (campanha.lojas || []).find(x => x.cnpj === cnpj);
+  return l ? l.nome : null;
+}
+
+function publicoDireito(d, campanha) {
+  if (!d) return null;
+  return {
+    id: d.id, status: d.status,
+    valorApurado: core.fromCents(d.valorApuradoCents),
+    qualificadoEm: d.qualificadoEm, retiradoEm: d.retiradoEm,
+    atendente: d.atendente, observacao: d.observacao,
+    brinde: campanha ? campanha.brindeDescricao : null,
+  };
+}
+
+function formatarData(iso) {
+  const [a, m, d] = String(iso).slice(0, 10).split('-');
+  return `${d}/${m}/${a}`;
 }
 
 // ---------- SORTEIO (Seção 7) ----------
@@ -274,5 +469,7 @@ function err(codigo, mensagem) { const e = new Error(mensagem); e.codigo = codig
 
 module.exports = {
   cadastrarParticipante, enviarNota, aprovarNota, rejeitarNota, cancelarNota,
-  recalcularNumeros, apurar, publicoParticipante, mascararCpf, CAMPANHA,
+  recalcular, recalcularNumeros, recalcularBrinde,
+  entregarBrinde, consultarCpf, publicoDireito,
+  apurar, publicoParticipante, mascararCpf, CAMPANHA,
 };

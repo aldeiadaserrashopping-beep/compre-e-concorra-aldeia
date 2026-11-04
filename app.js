@@ -75,17 +75,120 @@ async function carregarParticipante(nome) {
   const r = await api(`/api/v1/participantes/${PID}/resumo`);
   const p = r.participante;
   if (nome || p.nome) $('p-nome').textContent = (nome || p.nome).split(' ')[0];
-  $('m-valor').textContent = money(p.valorElegivel);
-  $('m-num').textContent = p.numerosAtivos;
-  const falta = 500 - p.saldoRemanescente;
-  $('m-falta').textContent = money(falta === 500 ? 500 : falta);
-  $('m-barra').style.width = Math.min(100, (p.saldoRemanescente / 500) * 100) + '%';
-  $('p-numeros').innerHTML = r.numeros.length
-    ? r.numeros.map(n => `<span class="num">${n}</span>`).join('')
-    : '<small class="help">Você ainda não tem números. Envie suas notas para começar a concorrer.</small>';
-  $('p-notas').innerHTML = tabelaNotas(r.notas, false);
-  passo(r.numeros.length ? 3 : 2);
+
+  $('m-valor').textContent = money(r.valorElegivel);
+  $('m-falta').textContent = money(r.faltam);
+  $('m-barra').style.width = r.progresso + '%';
+
+  const box = $('brinde-box');
+  const d = r.direito;
+  const local = (r.retirada && r.retirada.local) || 'ponto de retirada';
+  const horario = (r.retirada && r.retirada.horario) || '';
+
+  if (d && d.status === 'RETIRADO') {
+    box.className = 'brinde-box retirado';
+    box.innerHTML = `<div class="bb-ico">✓</div>
+      <h3>Brinde retirado</h3>
+      <p>Você retirou seu ${escaparTexto(r.brinde)} em ${dataHoraBr(d.retiradoEm)}.
+         Boas festas!</p>`;
+  } else if (d && d.status === 'QUALIFICADO') {
+    box.className = 'brinde-box pronto';
+    box.innerHTML = `<div class="bb-ico">🎁</div>
+      <h3>Seu brinde está liberado!</h3>
+      <p>Retire seu <b>${escaparTexto(r.brinde)}</b> no ${escaparTexto(local)} ${escaparTexto(horario)}.<br>
+         Leve um documento oficial com foto. Sujeito à disponibilidade de estoque no momento da retirada
+         — restam <b>${r.estoque.disponiveis}</b> unidades.</p>`;
+  } else if (d && d.status === 'REVOGADO') {
+    box.className = 'brinde-box falta';
+    box.innerHTML = `<div class="bb-ico">⚠️</div>
+      <h3>Seu acumulado ficou abaixo de R$ 300,00</h3>
+      <p>Uma das suas notas foi invalidada. Envie outra nota válida para liberar o brinde novamente.</p>`;
+  } else {
+    box.className = 'brinde-box falta';
+    box.innerHTML = `<div class="bb-ico">🎁</div>
+      <h3>Faltam ${money(r.faltam)}</h3>
+      <p>Some mais ${money(r.faltam)} em compras nas lojas participantes para garantir
+         seu ${escaparTexto(r.brinde)}.</p>`;
+  }
+
+  $('p-notas').innerHTML = tabelaNotas(r.notas);
+  passo(d && d.status === 'RETIRADO' ? 3 : (r.notas.length ? 2 : 1));
 }
+
+// -------- Situação da campanha no topo (antes de começar / encerrada / estoque) --------
+async function carregarCampanha() {
+  try {
+    const c = await api('/api/v1/campanha');
+    if (c.modalidade !== 'COMPRE_GANHE') return;
+    CAMP = c;
+    if (c.estoque) $('hero-estoque').textContent = c.estoque.disponiveis;
+    if (c.retirada && c.retirada.local) $('como-local').textContent = c.retirada.local;
+
+    const hoje = new Date().toISOString().slice(0, 10);
+    const box = $('hero-status');
+    if (hoje < c.dataInicio) {
+      const dias = diasEntre(hoje, c.dataInicio);
+      box.innerHTML = `<div class="faixa">A campanha começa em
+        <b>${dataBrCurta(c.dataInicio)}</b>${dias > 0 ? ` — faltam <b>${dias}</b> ${dias === 1 ? 'dia' : 'dias'}` : ''}.
+        Você já pode fazer seu cadastro.</div>`;
+    } else if (hoje > c.dataFim) {
+      box.innerHTML = `<div class="faixa alerta">As compras encerraram em <b>${dataBrCurta(c.dataFim)}</b>.
+        ${c.dataFimRetirada && hoje <= c.dataFimRetirada
+          ? `A retirada segue até <b>${dataBrCurta(c.dataFimRetirada)}</b>.` : 'A campanha está encerrada.'}</div>`;
+    } else if (c.estoque && c.estoque.disponiveis === 0) {
+      box.innerHTML = `<div class="faixa alerta">As <b>${c.estoque.total}</b> unidades já foram retiradas.
+        A campanha está encerrada por esgotamento de estoque.</div>`;
+    } else if (c.estoque && c.estoque.disponiveis <= 30) {
+      box.innerHTML = `<div class="faixa alerta">Restam apenas <b>${c.estoque.disponiveis}</b> unidades.
+        A compra não garante reserva do brinde.</div>`;
+    } else {
+      box.innerHTML = `<div class="faixa">Campanha válida de <b>${dataBrCurta(c.dataInicio)}</b> a
+        <b>${dataBrCurta(c.dataFim)}</b>, enquanto durarem as ${c.estoque ? c.estoque.total : 300} unidades.</div>`;
+    }
+  } catch { /* a faixa é informativa: falhar nela não pode impedir o cadastro */ }
+}
+
+// -------- Lojas participantes (Cláusula 5) --------
+let LOJAS = null, CAMP = null;
+async function verLojas() {
+  const box = $('box-lojas');
+  if (box.classList.contains('hidden') === false) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  if (LOJAS) return;
+  try {
+    const r = await api('/api/v1/lojas');
+    LOJAS = r.lojas;
+    $('lista-lojas').innerHTML = r.lojas
+      .map(l => `<span>${escaparTexto(l.nome)}</span>`).join('');
+  } catch {
+    $('lista-lojas').innerHTML = '<small class="help">Não foi possível carregar a lista agora.</small>';
+  }
+}
+
+function escaparTexto(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function dataBrCurta(iso) {
+  const [a, m, d] = String(iso).slice(0, 10).split('-');
+  return `${d}/${m}`;
+}
+function diasEntre(de, ate) {
+  const ms = new Date(ate + 'T00:00:00') - new Date(de + 'T00:00:00');
+  return Math.max(0, Math.round(ms / 86400000));
+}
+function dataHoraBr(iso) {
+  if (!iso) return '—';
+  try {
+    return new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(new Date(iso));
+  } catch { return String(iso).slice(0, 10); }
+}
+
+carregarCampanha();
 
 // -------- Envio de nota (QR + foto) --------
 async function enviarNota() {
@@ -97,7 +200,7 @@ async function enviarNota() {
       dataCompra: $('n-data').value || null, fotoBase64: FOTO_B64,
     };
     await api('/api/v1/notas', 'POST', d);
-    msg('n-msg', 'Nota enviada! Assim que for validada, seus números aparecem aqui.', true);
+    msg('n-msg', 'Nota enviada! A análise leva até 2 dias úteis. Assim que for validada, o valor entra no seu total.', true);
     FOTO_B64 = null; ['n-foto', 'n-chave', 'n-cnpj', 'n-valor'].forEach(i => $(i).value = '');
     $('n-preview').classList.add('hidden'); $('n-lido').classList.add('hidden');
     carregarParticipante();
@@ -227,7 +330,11 @@ function analisarFoto(img) {
 // -------- Tabela de notas (visão do participante) --------
 function tabelaNotas(notas) {
   if (!notas.length) return '<small class="help">Nenhuma nota ainda.</small>';
-  return '<table><tr><th>ID</th><th>Valor válido</th><th>Status</th></tr>' +
-    notas.map(n => `<tr><td>${n.id}</td><td>${money((n.valorElegivelCents || 0) / 100)}</td>
-      <td><span class="chip ${n.status}">${n.status.replace('_', ' ')}</span>${n.motivoRejeicao ? '<br><small class="help">' + n.motivoRejeicao + '</small>' : ''}</td></tr>`).join('') + '</table>';
+  return '<table><tr><th>Data</th><th>Valor válido</th><th>Situação</th></tr>' +
+    notas.map(n => `<tr>
+      <td>${n.dataCompra ? dataBrCurta(n.dataCompra) : '—'}</td>
+      <td>${money((n.valorElegivelCents || 0) / 100)}</td>
+      <td><span class="chip ${escaparTexto(n.status)}">${escaparTexto(n.status.replace('_', ' '))}</span>${
+        n.motivoRejeicao ? '<br><small class="help">' + escaparTexto(n.motivoRejeicao) + '</small>' : ''}</td>
+    </tr>`).join('') + '</table>';
 }
