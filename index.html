@@ -27,6 +27,23 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* Nohemi — tipografia oficial da marca (Manual de Identidade Visual, seção 4).
+     Servida a partir do site institucional do shopping, que já a publica com
+     CORS liberado. Evita duplicar o arquivo e mantém uma origem única da fonte.
+     A Outfit continua na pilha como reserva: se o site institucional sair do ar,
+     o portal cai numa geométrica parecida em vez de numa fonte de sistema. */
+  @font-face{font-family:'Nohemi';font-style:normal;font-weight:300;font-display:swap;
+    src:url('https://shoppingaldeiadaserra.com.br/fonts/Nohemi-Light.woff') format('woff')}
+  @font-face{font-family:'Nohemi';font-style:normal;font-weight:400;font-display:swap;
+    src:url('https://shoppingaldeiadaserra.com.br/fonts/Nohemi-Regular.woff') format('woff')}
+  @font-face{font-family:'Nohemi';font-style:normal;font-weight:500;font-display:swap;
+    src:url('https://shoppingaldeiadaserra.com.br/fonts/Nohemi-Medium.woff') format('woff')}
+  @font-face{font-family:'Nohemi';font-style:normal;font-weight:600;font-display:swap;
+    src:url('https://shoppingaldeiadaserra.com.br/fonts/Nohemi-SemiBold.woff') format('woff')}
+  @font-face{font-family:'Nohemi';font-style:normal;font-weight:700;font-display:swap;
+    src:url('https://shoppingaldeiadaserra.com.br/fonts/Nohemi-Bold.woff') format('woff')}
+</style>
+<style>
   :root{
     /* Identidade Natal Luz 2026 — cores extraídas da arte do outdoor:
        vinho da cortina, verde pinho do chão e madeira clara dos enfeites. */
@@ -40,7 +57,7 @@
     --dourado-esc:var(--madeira-esc); --areia:#f0e4d6; --terracota:#8a2630;
     --cinza:#7a6f68;
     --creme:#f8f4ed; --branco:#fffdfa; --linha:#e8ded1; --txt:#241f1d; --suave:#6e655c;
-    --serif:'Outfit',-apple-system,Segoe UI,Roboto,sans-serif; --sans:'Outfit',-apple-system,Segoe UI,Roboto,sans-serif;
+    --serif:'Nohemi','Outfit',-apple-system,Segoe UI,Roboto,sans-serif; --sans:'Nohemi','Outfit',-apple-system,Segoe UI,Roboto,sans-serif;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--creme);color:var(--txt);font-family:var(--sans);font-weight:300;line-height:1.55}
