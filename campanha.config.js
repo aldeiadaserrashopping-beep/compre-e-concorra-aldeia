@@ -43,7 +43,7 @@ module.exports = {
 
   retirada: {
     local: 'Shopping Aldeia da Serra, Bloco B, 1º piso, ao lado do guichê da Estapar',
-    horario: 'das 12h às 19h',
+    horario: 'de segunda a domingo, das 12h às 19h',
   },
 
   // --- campos herdados do modelo de sorteio (não usados no compre e ganhe) ---
