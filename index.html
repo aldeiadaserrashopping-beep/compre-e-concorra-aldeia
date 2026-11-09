@@ -25,13 +25,13 @@
 <meta name="twitter:image" content="https://aldeiapremia.com.br/og-natal.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* Nohemi — tipografia oficial da marca (Manual de Identidade Visual, seção 4).
      Servida a partir do site institucional do shopping, que já a publica com
      CORS liberado. Evita duplicar o arquivo e mantém uma origem única da fonte.
-     A Outfit continua na pilha como reserva: se o site institucional sair do ar,
-     o portal cai numa geométrica parecida em vez de numa fonte de sistema. */
+     Usada só em títulos e chamadas; o texto corrido é Montserrat Regular.
+     A Montserrat fica como reserva da Nohemi se o site institucional cair. */
   @font-face{font-family:'Nohemi';font-style:normal;font-weight:300;font-display:swap;
     src:url('https://shoppingaldeiadaserra.com.br/fonts/Nohemi-Light.woff') format('woff')}
   @font-face{font-family:'Nohemi';font-style:normal;font-weight:400;font-display:swap;
@@ -57,7 +57,7 @@
     --dourado-esc:var(--madeira-esc); --areia:#f0e4d6; --terracota:#8a2630;
     --cinza:#7a6f68;
     --creme:#f8f4ed; --branco:#fffdfa; --linha:#e8ded1; --txt:#241f1d; --suave:#6e655c;
-    --serif:'Nohemi','Outfit',-apple-system,Segoe UI,Roboto,sans-serif; --sans:'Nohemi','Outfit',-apple-system,Segoe UI,Roboto,sans-serif;
+    --serif:'Nohemi','Montserrat',-apple-system,Segoe UI,Roboto,sans-serif; --sans:'Montserrat',-apple-system,Segoe UI,Roboto,sans-serif;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--creme);color:var(--txt);font-family:var(--sans);font-weight:300;line-height:1.55}
@@ -100,7 +100,8 @@
   /* Numa geométrica o itálico destoa: o contraste entre as duas palavras
      passa a ser feito por peso e cor, como no outdoor da campanha. */
 
-  .hero p.lead{font-size:18px;font-weight:300;color:#e9e3d6;max-width:440px;margin:0 0 28px}
+  /* Chamada do hero: é chamada, não texto corrido — por isso Nohemi. */
+  .hero p.lead{font-family:var(--serif);font-size:18px;font-weight:300;color:#e9e3d6;max-width:440px;margin:0 0 28px}
   /* Destaque dos prêmios: números em serif dourado + rótulos em caixa alta espaçada */
   .hero .premio{display:flex;align-items:center;gap:26px;margin-top:4px}
   .hero .premio .p-item{display:flex;align-items:center;gap:14px}
