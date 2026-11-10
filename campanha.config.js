@@ -56,71 +56,81 @@ module.exports = {
   seriesConfig: { serieAtual: 1, proximoNumero: 0, tamanhoSerie: 100000, digitos: 5 },
 
   /**
-   * Operações participantes — TODAS as operações do shopping (Cláusula 5,
-   * alterada em 04/11: varejo, alimentação, gastronomia e serviços).
+   * Operações participantes — relação oficial "LOJAS PARTICIPANTES NATAL LUZ"
+   * (planilha do Marketing, 10/11/2026). Participam TODAS as operações do
+   * shopping: varejo, alimentação, gastronomia e serviços (Cláusula 5).
    *
-   * A lista continua existindo e continua sendo obrigatória: sem ela, uma nota
-   * de qualquer comércio da cidade passaria. O que mudou é que ela precisa
-   * conter TODAS as operações do shopping, não só as de varejo.
+   * A lista é obrigatória mesmo valendo "qualquer loja": sem ela, uma nota de
+   * qualquer comércio da cidade passaria.
    *
-   * PENDENTE: faltam os CNPJs das operações de alimentação e serviços. Até que
-   * entrem aqui, notas dessas lojas serão recusadas por E-NOTA-04.
+   * Vários CNPJs se repetem porque uma mesma empresa opera mais de uma marca
+   * no shopping (Spoleto/Koni/Asa Açaí, HNT/Mex Burritos). Isso é esperado.
    *
-   * Atenção: o CNPJ que importa é o IMPRESSO NO CUPOM, que nem sempre é o do
-   * cadastro da loja. Foi o caso do Boticário na campanha anterior (cadastro
-   * .../0001-99, cupom .../0001-06). Confirmar com um cupom de exemplo de cada
-   * loja antes de 1º/12.
+   * Atenção: o CNPJ que vale é o IMPRESSO NO CUPOM, nem sempre o do cadastro.
+   * Por isso os CNPJs antigos de Óticas Diniz, Boticário, Mahai e Óticas Maya
+   * continuam aceitos: são as mesmas lojas, e recusar um cliente de operação
+   * participante custa mais caro do que aceitar uma filial a mais.
    */
   lojasParticipantesCNPJ: [
-    '47361452000324', // AD LIFE — Sergios Vitoria Comercio de Calcados Ltda
-    '62506724000169', // CACAU SHOW — Aldeia Chocolates Ltda
-    '14979684000120', // INBRAND STORE — Coke Luxo Comercio de Roupas Ltda
-    '14979684001100', // SIX CLUB — Coke Luxo Comercio de Roupas Ltda (filial)
-    '62098606000169', // NATURA ALDEIA — GM Aldeia Cosméticos Ltda
-    '03756360000199', // O BOTICÁRIO — Flor de Baunilha Perfumaria e Cosméticos Ltda
-    '03756360000106', // O BOTICÁRIO — filial que emite as notas no shopping
-    '57137821000191', // PITICO KIDS — MC Comércio de Brinquedos Ltda
-    '34230660000261', // VIA MIA — Vitoria Calçados Ltda
-    '26217704000104', // ÓTICAS DINIZ — VLE Comercio de Otica Ltda
-    '59041432000193', // ÓTICAS DINIZ — segundo CNPJ
-    '46727672000102', // ÓTICAS MAIA — Oticas M.Maia Ltda
+    // --- relação oficial do Natal Luz ---
+    '47361452000324', // AD LIFE — moda masculina — B/1
+    '59273034000100', // ASA AÇAÍ · KONI · SPOLETO — alimentação — B/2
+    '62506724000169', // CACAU SHOW — alimentação — B/2
+    '36526209000130', // CENTRO DE METABOLISMO DR. IGOR MARQUES — clínica — A/2
+    '57902761000156', // DERMAVIVA — clínica — A/2
+    '59302709000194', // GIRAFFAS — alimentação — B/2
+    '59272743000163', // HNT · MEX BURRITOS — alimentação — B/2
+    '14979684000120', // INBRAND STORE — moda feminina — B/1
+    '34084985000526', // MAHAI — alimentação — A/1
+    '62098606000169', // NATURA — perfumaria — B/1
+    '57137821000191', // PITICO KIDS — brinquedo — B/1
+    '14979684001100', // SIX CLUB — moda feminina — B/1
+    '13305908000155', // SMART FIT — academia — C/1
+    '34230660000261', // VIA MIA — calçados — B/1
+    '03756360000106', // O BOTICÁRIO — perfumaria — B/1
+    '15743430000251', // OFTALMOPLUS — clínica — C/2
+    '59041432000193', // ÓTICAS DINIZ — ótica — C/1
+    '46727672000285', // ÓTICAS MAYA — ótica — D/1
 
-    // Alimentação, gastronomia e serviços — passaram a participar em 04/11.
-    '59273034000100', // ASK SPOLETO — Ask Serra Foods Ltda
-    '59302709000194', // GIRAFFAS — GFF Serra Foods Ltda
-    '59272743000163', // HMP — HMP Serra Foods Ltda
-    '34084985000100', // MAHAI — Restaurante Mahai ES Ltda
-    '39829064000135', // HAVE FUN — Rick Comercio e Locacao Ltda
-    '13305908000155', // SMART FIT — Trindade Serviços Operacionais Ltda
-    '57902761000156', // CLÍNICA DERMAVIVA
-    '15743430000251', // OFTALMOPLUS — Centro de Cuidados Oftalmologicos e Especialidades Ltda
+    // --- CNPJs antigos das mesmas lojas, mantidos por segurança ---
+    '26217704000104', // ÓTICAS DINIZ — CNPJ confirmado emitindo na campanha anterior
+    '03756360000199', // O BOTICÁRIO — CNPJ de cadastro (cupom sai no .../0001-06)
+    '34084985000100', // MAHAI — CNPJ da relação de julho
+    '46727672000102', // ÓTICAS MAYA — CNPJ da relação de julho
+
+    // HAVE FUN está na relação oficial, mas a planilha informa "NÃO EMITE NOTA".
+    // Sem documento fiscal não há como cadastrar a compra, então não há CNPJ a
+    // incluir aqui. Pendente de definição com a coordenação.
   ],
 
   /**
-   * Nomes das lojas, para a página pública e para o diagnóstico de recusa.
-   * Chave = CNPJ só com dígitos.
+   * Nomes das operações, para a página pública e para o diagnóstico de recusa.
+   * Chave = CNPJ só com dígitos. Onde uma empresa opera várias marcas, o nome
+   * traz todas, que é como o cliente reconhece.
    */
   lojasNomes: {
-    '47361452000324': { nome: 'AD Life', razao: 'Sergios Vitoria Comércio de Calçados Ltda' },
-    '62506724000169': { nome: 'Cacau Show', razao: 'Aldeia Chocolates Ltda' },
-    '14979684000120': { nome: 'Inbrand Store', razao: 'Coke Luxo Comércio de Roupas Ltda' },
-    '14979684001100': { nome: 'Six Club', razao: 'Coke Luxo Comércio de Roupas Ltda (filial)' },
-    '62098606000169': { nome: 'Natura Aldeia', razao: 'GM Aldeia Cosméticos Ltda' },
-    '03756360000199': { nome: 'O Boticário', razao: 'Flor de Baunilha Perfumaria e Cosméticos Ltda' },
-    '03756360000106': { nome: 'O Boticário', razao: 'Flor de Baunilha Perfumaria e Cosméticos Ltda (filial)' },
-    '57137821000191': { nome: 'Pitico Kids', razao: 'MC Comércio de Brinquedos Ltda' },
-    '34230660000261': { nome: 'Via Mia', razao: 'Vitória Calçados Ltda' },
-    '26217704000104': { nome: 'Óticas Diniz', razao: 'VLE Comércio de Ótica Ltda' },
-    '59041432000193': { nome: 'Óticas Diniz', razao: 'Óticas Diniz — segundo CNPJ' },
-    '46727672000102': { nome: 'Óticas Maia', razao: 'Óticas M. Maia Ltda' },
-    '59273034000100': { nome: 'Spoleto', razao: 'Ask Serra Foods Ltda' },
-    '59302709000194': { nome: 'Giraffas', razao: 'GFF Serra Foods Ltda' },
-    '59272743000163': { nome: 'HMP', razao: 'HMP Serra Foods Ltda' },
-    '34084985000100': { nome: 'Mahai', razao: 'Restaurante Mahai ES Ltda' },
-    '39829064000135': { nome: 'Have Fun', razao: 'Rick Comércio e Locação Ltda' },
-    '13305908000155': { nome: 'Smart Fit', razao: 'Trindade Serviços Operacionais Ltda' },
-    '57902761000156': { nome: 'Clínica Dermaviva', razao: 'Clínica Dermaviva' },
-    '15743430000251': { nome: 'Oftalmoplus', razao: 'Centro de Cuidados Oftalmológicos e Especialidades Ltda' },
+    '47361452000324': { nome: 'AD Life', razao: 'Moda masculina · Bloco B, 1º piso' },
+    '59273034000100': { nome: 'Spoleto · Koni · Asa Açaí', razao: 'Alimentação · Bloco B, 2º piso' },
+    '62506724000169': { nome: 'Cacau Show', razao: 'Alimentação · Bloco B, 2º piso' },
+    '36526209000130': { nome: 'Centro de Metabolismo Dr. Igor Marques', razao: 'Clínica médica · Bloco A, 2º piso' },
+    '57902761000156': { nome: 'Dermaviva', razao: 'Clínica médica · Bloco A, 2º piso' },
+    '59302709000194': { nome: 'Giraffas', razao: 'Alimentação · Bloco B, 2º piso' },
+    '59272743000163': { nome: 'HNT · Mex Burritos', razao: 'Alimentação · Bloco B, 2º piso' },
+    '14979684000120': { nome: 'Inbrand Store', razao: 'Moda feminina · Bloco B, 1º piso' },
+    '34084985000526': { nome: 'Mahai', razao: 'Alimentação · Bloco A, 1º piso' },
+    '34084985000100': { nome: 'Mahai', razao: 'Alimentação · Bloco A, 1º piso' },
+    '62098606000169': { nome: 'Natura', razao: 'Perfumaria · Bloco B, 1º piso' },
+    '57137821000191': { nome: 'Pitico Kids', razao: 'Brinquedos · Bloco B, 1º piso' },
+    '14979684001100': { nome: 'Six Club', razao: 'Moda feminina · Bloco B, 1º piso' },
+    '13305908000155': { nome: 'Smart Fit', razao: 'Academia · Bloco C, 1º piso' },
+    '34230660000261': { nome: 'Via Mia', razao: 'Calçados · Bloco B, 1º piso' },
+    '03756360000106': { nome: 'O Boticário', razao: 'Perfumaria · Bloco B, 1º piso' },
+    '03756360000199': { nome: 'O Boticário', razao: 'Perfumaria · Bloco B, 1º piso' },
+    '15743430000251': { nome: 'Oftalmoplus', razao: 'Clínica médica · Bloco C, 2º piso' },
+    '59041432000193': { nome: 'Óticas Diniz', razao: 'Ótica · Bloco C, 1º piso' },
+    '26217704000104': { nome: 'Óticas Diniz', razao: 'Ótica · Bloco C, 1º piso' },
+    '46727672000285': { nome: 'Óticas Maya', razao: 'Ótica · Bloco D, 1º piso' },
+    '46727672000102': { nome: 'Óticas Maya', razao: 'Ótica · Bloco D, 1º piso' },
   },
 
   status: 'ATIVA',

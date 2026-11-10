@@ -84,8 +84,9 @@ teste('Todas as operações do shopping estão cadastradas', async () => {
   const c = await store.getCampanha(null, CAMPANHA.id);
   ok(c.lojasParticipantesCNPJ.length === CAMPANHA.lojasParticipantesCNPJ.length,
     `vieram ${c.lojasParticipantesCNPJ.length} lojas, esperado ${CAMPANHA.lojasParticipantesCNPJ.length}`);
-  // Desde 04/11 alimentação, gastronomia e serviços também participam.
-  for (const dentro of ['59273034000100', '59302709000194', '13305908000155', '15743430000251']) {
+  // Relação oficial do Natal Luz: alimentação, clínicas e academia participam.
+  for (const dentro of ['59273034000100', '59302709000194', '13305908000155',
+                        '15743430000251', '36526209000130', '34084985000526']) {
     ok(c.lojasParticipantesCNPJ.includes(dentro), `${dentro} deveria participar`);
   }
 });
