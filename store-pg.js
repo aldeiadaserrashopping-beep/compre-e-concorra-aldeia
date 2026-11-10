@@ -154,19 +154,27 @@ async function init(campanhaPadrao) {
        c.estoqueTotal || null, c.limitePorCpf || 1, c.dataFimRetirada || null,
        c.versaoRegulamento || 'v1.0']);
   }
-  // Lojas: sincronizadas a cada boot (a relação oficial pode mudar até a véspera).
+  // Lojas: sincronizadas a cada boot (a relação oficial muda até a véspera).
+  //
+  // Sincronizar é nos três sentidos — incluir, ATUALIZAR e REMOVER. A primeira
+  // versão só incluía e preservava o nome existente com COALESCE: quando a
+  // relação oficial mudou, o portal seguiu mostrando nomes antigos e operações
+  // que já não participavam. O arquivo de configuração é a fonte da verdade.
   const nomes = campanhaPadrao.lojasNomes || {};
   for (const cnpj of campanhaPadrao.lojasParticipantesCNPJ) {
     const info = nomes[cnpj] || {};
     await pool.query(
       `INSERT INTO loja_participante (campanha_id,cnpj,nome,razao_social) VALUES ($1,$2,$3,$4)
-       ON CONFLICT DO NOTHING`,
-      [campanhaPadrao.id, cnpj, info.nome || null, info.razao || null]);
-    await pool.query(
-      `UPDATE loja_participante SET nome = COALESCE($3,nome), razao_social = COALESCE($4,razao_social)
-       WHERE campanha_id = $1 AND cnpj = $2`,
+       ON CONFLICT (campanha_id,cnpj) DO UPDATE
+         SET nome = EXCLUDED.nome, razao_social = EXCLUDED.razao_social`,
       [campanhaPadrao.id, cnpj, info.nome || null, info.razao || null]);
   }
+  // Tira da campanha as operações que saíram da relação. Notas já aprovadas
+  // delas continuam válidas: muda só o que passa a ser aceito daqui para frente.
+  const fora = await pool.query(
+    'DELETE FROM loja_participante WHERE campanha_id = $1 AND NOT (cnpj = ANY($2)) RETURNING cnpj',
+    [campanhaPadrao.id, campanhaPadrao.lojasParticipantesCNPJ]);
+  if (fora.rows.length) console.log('Lojas removidas da relação:', fora.rows.map(r => r.cnpj).join(', '));
 
   const u = await pool.query('SELECT id FROM usuario LIMIT 1');
   if (!u.rows.length) {
