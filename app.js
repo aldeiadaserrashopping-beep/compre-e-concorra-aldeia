@@ -193,7 +193,7 @@ async function enviarNota() {
       dataCompra: $('n-data').value || null, fotoBase64: FOTO_B64,
     };
     await api('/api/v1/notas', 'POST', d);
-    msg('n-msg', 'Nota enviada! A análise leva até 2 dias úteis. Assim que for validada, o valor entra no seu total.', true);
+    msg('n-msg', 'Nota enviada! A análise leva até 1 dia útil. Assim que for validada, o valor entra no seu total.', true);
     FOTO_B64 = null; ['n-foto', 'n-chave', 'n-cnpj', 'n-valor'].forEach(i => $(i).value = '');
     $('n-preview').classList.add('hidden'); $('n-lido').classList.add('hidden');
     carregarParticipante();
