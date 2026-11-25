@@ -27,10 +27,12 @@ module.exports = {
 
   dataInicio: '2026-12-01',
   dataFim: '2026-12-31',            // fim das compras e do cadastro de notas
-  // Prazo de retirada separado do fim das compras: quem comprar nos últimos dias
-  // precisa de tempo hábil para cadastrar, ser conferido e retirar. Sugerido na
-  // revisão do regulamento — ajustar se a coordenação decidir encerrar em 31/12.
-  dataFimRetirada: '2027-01-05',
+  // Retirada encerra junto com a campanha, em 31/12, conforme o regulamento
+  // aprovado em 05/11 (Cláusulas 2 e 9). A sugestão de estender até 05/01 foi
+  // recusada pela coordenação. Consequência operacional conhecida: quem comprar
+  // nos dias 30 e 31 tem pouquíssimo tempo para cadastrar, ser conferido e
+  // retirar — a equipe precisa priorizar a análise nesses dois dias.
+  dataFimRetirada: '2026-12-31',
 
   versaoRegulamento: 'natal-v1.0',
 
@@ -92,11 +94,14 @@ module.exports = {
     '59041432000193', // ÓTICAS DINIZ — ótica — C/1
     '46727672000285', // ÓTICAS MAYA — ótica — D/1
 
-    // --- CNPJs antigos das mesmas lojas, mantidos por segurança ---
+    // --- Segundos CNPJs das mesmas lojas ---
+    // Mahai e Óticas Maya aparecem com filiais diferentes na relação de julho e
+    // na do Natal. A coordenação confirmou em 25/11 que os DOIS valem, para não
+    // recusar cliente de loja participante por diferença de filial no cupom.
     '26217704000104', // ÓTICAS DINIZ — CNPJ confirmado emitindo na campanha anterior
     '03756360000199', // O BOTICÁRIO — CNPJ de cadastro (cupom sai no .../0001-06)
-    '34084985000100', // MAHAI — CNPJ da relação de julho
-    '46727672000102', // ÓTICAS MAYA — CNPJ da relação de julho
+    '34084985000100', // MAHAI — filial da relação de julho (confirmada pela coordenação)
+    '46727672000102', // ÓTICAS MAYA — filial da relação de julho (confirmada pela coordenação)
 
     // HAVE FUN está na relação oficial, mas a planilha informa "NÃO EMITE NOTA".
     // Sem documento fiscal não há como cadastrar a compra, então não há CNPJ a
