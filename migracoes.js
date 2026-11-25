@@ -12,7 +12,7 @@
  */
 
 module.exports = async function migracoes(store) {
-  // Atendente do balcão de retirada (Natal 2026).
+  // ---- 1) Atendente do balcão de retirada (Natal 2026) ----
   //
   // Criado só se BALCAO_SENHA estiver definida: sem a variável, nenhum usuário
   // de balcão existe, e a ausência é mais segura que uma senha padrão. A senha
@@ -26,5 +26,30 @@ module.exports = async function migracoes(store) {
         ['U-BALCAO', 'Balcão de Retirada', email, store.hashSenha(process.env.BALCAO_SENHA)]);
       console.log('MIGRACAO: usuário do balcão criado —', email);
     }
+  }
+
+  // ---- 2) Prazo de retirada conforme o regulamento aprovado em 05/11 ----
+  //
+  // A campanha foi criada com retirada até 05/01/2027, que era a sugestão em
+  // revisão. O regulamento aprovado manteve o encerramento em 31/12/2026
+  // (Cláusulas 2 e 9). Parâmetro de campanha não muda por deploy — por isso a
+  // correção vem por aqui, com registro na trilha de auditoria.
+  const { rows: cam } = await store.q(
+    `SELECT data_fim_retirada, versao_regulamento FROM campanha WHERE id = 'CAMP-NATAL-2026'`);
+  if (cam.length && String(cam[0].data_fim_retirada) !== '2026-12-31') {
+    const anterior = String(cam[0].data_fim_retirada);
+    await store.q(
+      `UPDATE campanha SET data_fim_retirada = '2026-12-31', versao_regulamento = 'natal-aprovado-05.11'
+       WHERE id = 'CAMP-NATAL-2026'`);
+    await store.auditar(null, {
+      entidade: 'campanha', entidadeId: 'CAMP-NATAL-2026', acao: 'CORRECAO_PRAZO_RETIRADA',
+      usuario: 'marketing@shoppingaldeiadaserra.com.br (regulamento aprovado em 05/11)',
+      valorAnterior: { dataFimRetirada: anterior, versaoRegulamento: cam[0].versao_regulamento },
+      valorNovo: {
+        dataFimRetirada: '2026-12-31', versaoRegulamento: 'natal-aprovado-05.11',
+        motivo: 'Regulamento aprovado mantém o encerramento da campanha e do resgate em 31/12/2026.',
+      },
+    });
+    console.log(`MIGRACAO: prazo de retirada corrigido de ${anterior} para 2026-12-31`);
   }
 };
